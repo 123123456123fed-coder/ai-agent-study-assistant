@@ -23,7 +23,8 @@ def _quality_penalty(chunk):
     if not text:
         return 0.5
 
-    control_chars = sum(1 for char in text if ord(char) < 32 and char not in "\n\t")
+    control_chars = sum(1 for char in text if ord(char) < 32 and char not in "
+	")
     digits = sum(1 for char in text if char.isdigit())
     letters = sum(1 for char in text if char.isalpha())
     total = max(len(text), 1)
@@ -71,7 +72,7 @@ def build_from_data(pdf_data):
     _pdf_data = pdf_data
     _document_text = pdf_data.get("text", "")
     if not _document_text.strip():
-        raise ValueError("未能从该 PDF 中提取到文本。")
+        raise ValueError("???? PDF ???????")
 
     chunks = split_text(_document_text)
     build_index(chunks)

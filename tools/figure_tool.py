@@ -1,4 +1,4 @@
-"""Figure and table analysis tool."""
+﻿"""Figure and table analysis tool."""
 
 
 def _as_pdf_data(pdf_data):
@@ -15,16 +15,16 @@ def analyze_figures(pdf_data):
     tables = data.get("tables", [])
 
     if not figures and not tables:
-        return "📊 图表解析\n文档中未识别到明显的 Figure/Table 标题。"
+        return "\U0001F5BC \u56fe\u8868\u89e3\u6790\n\u6587\u6863\u4e2d\u672a\u8bc6\u522b\u5230\u660e\u786e\u7684 Figure/Table \u6807\u9898\u3002"
 
-    lines = ["📊 图表解析"]
+    lines = ["\U0001F5BC \u56fe\u8868\u89e3\u6790"]
     if figures:
         lines.append("Figures:")
         for item in figures[:8]:
-            lines.append(f"- {item.get('id', 'Figure')}：{item.get('caption', '')}")
+            lines.append(f"- {item.get('id', 'Figure')}\uff1a{item.get('caption', '')}")
     if tables:
         lines.append("Tables:")
         for item in tables[:8]:
-            lines.append(f"- {item.get('id', 'Table')}：{item.get('content', '')}")
+            lines.append(f"- {item.get('id', 'Table')}\uff1a{item.get('content', '')}")
 
     return "\n".join(lines)

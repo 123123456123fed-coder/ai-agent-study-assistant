@@ -1,4 +1,4 @@
-"""Document statistics tool."""
+﻿"""Document statistics tool."""
 
 import re
 
@@ -22,12 +22,12 @@ def count_words(pdf_data):
     formulas = len(pdf_data.get("formulas", [])) if isinstance(pdf_data, dict) else 0
 
     return (
-        "📊 字数/结构统计\n"
-        f"- 总 token/词数量：{len(words)}\n"
-        f"- 中文字符数：{len(chinese_chars)}\n"
-        f"- 英文词数量：{len(english_words)}\n"
-        f"- 原始字符数：{len(text)}\n"
-        f"- 图：{figures} 个\n"
-        f"- 表：{tables} 个\n"
-        f"- 公式候选：{formulas} 条"
+        "\U0001F4CA \u5b57\u6570\u4e0e\u7ed3\u6784\u7edf\u8ba1\n"
+        f"- \u603b token/\u8bcd\u6570\uff1a{len(words)}\n"
+        f"- \u4e2d\u6587\u5b57\u7b26\u6570\uff1a{len(chinese_chars)}\n"
+        f"- \u82f1\u6587\u8bcd\u6570\uff1a{len(english_words)}\n"
+        f"- \u539f\u59cb\u5b57\u7b26\u6570\uff1a{len(text)}\n"
+        f"- \u56fe\uff1a{figures} \u4e2a\n"
+        f"- \u8868\uff1a{tables} \u4e2a\n"
+        f"- \u516c\u5f0f\u5019\u9009\uff1a{formulas} \u6761"
     )

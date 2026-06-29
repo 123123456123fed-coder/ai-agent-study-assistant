@@ -44,11 +44,22 @@ def _extract_formulas(text):
     formulas = []
     seen = set()
 
+    def is_garbled_formula(line):
+        bad_markers = ["\ufffd", "\u25a1", "\u25c6", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?"]
+        if any(marker in line for marker in bad_markers):
+            return True
+        weird_chars = re.findall(r"[^\w\s.,;:!?%()\-/=<>+\[\]*]", line)
+        if len(line) > 0 and len(weird_chars) / len(line) > 0.12:
+            return True
+        return False
+
     for line in text.splitlines():
         cleaned = re.sub(r"\s+", " ", line).strip()
         if not cleaned or len(cleaned) > 220:
             continue
-        if re.search(r"[=<>∑√μσαβγλθ]|\b(eq\.?|equation)\b", cleaned, re.IGNORECASE):
+        if is_garbled_formula(cleaned):
+            continue
+        if re.search(r"[=<>+\-*/]|\b(eq\.?|equation)\b", cleaned, re.IGNORECASE):
             if cleaned not in seen:
                 formulas.append(cleaned)
                 seen.add(cleaned)

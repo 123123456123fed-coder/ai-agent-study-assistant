@@ -1,4 +1,4 @@
-"""Author and metadata extraction tool."""
+﻿"""Author and metadata extraction tool."""
 
 import re
 
@@ -18,10 +18,10 @@ def extract_authors(pdf_data):
     title = metadata.get("title", "").strip()
 
     if authors:
-        lines = ["👤 作者/元信息"]
+        lines = ["\U0001F464 \u4f5c\u8005\u4e0e\u5143\u4fe1\u606f"]
         if title:
-            lines.append(f"- 标题：{title}")
-        lines.append(f"- 作者：{authors}")
+            lines.append(f"- \u6807\u9898\uff1a{title}")
+        lines.append(f"- \u4f5c\u8005\uff1a{authors}")
         return "\n".join(lines)
 
     text = data.get("text", "")
@@ -31,9 +31,9 @@ def extract_authors(pdf_data):
         if re.search(r"\b(author|authors)\b", line, re.IGNORECASE):
             candidates.append(line)
         elif (
-            re.match(r"^([A-Z][A-Za-z.\-]+\\s+){2,9}[A-Z][A-Za-z.\-]+$", line)
+            re.match(r"^([A-Z][A-Za-z.\-]+\s+){2,9}[A-Z][A-Za-z.\-]+$", line)
             and not re.search(
-                r"@|\\d|prof\\.|university|laborator|department|institute|street|road|"
+                r"@|\d|prof\.|university|laborator|department|institute|street|road|"
                 r"design|testing|test|system|chip|chips|optimal|infrastructure|conventional|resources",
                 lower,
             )
@@ -43,6 +43,6 @@ def extract_authors(pdf_data):
             candidates.append(line)
 
     if not candidates:
-        return "👤 作者/元信息\n文档中未识别到明确作者信息。"
+        return "\U0001F464 \u4f5c\u8005\u4e0e\u5143\u4fe1\u606f\n\u6587\u6863\u4e2d\u672a\u8bc6\u522b\u5230\u660e\u786e\u4f5c\u8005\u4fe1\u606f\u3002"
 
-    return "👤 作者/元信息\n" + "\n".join(f"- {item}" for item in candidates[:5])
+    return "\U0001F464 \u4f5c\u8005\u4e0e\u5143\u4fe1\u606f\n" + "\n".join(f"- {item}" for item in candidates[:5])

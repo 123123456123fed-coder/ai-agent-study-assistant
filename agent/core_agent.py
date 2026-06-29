@@ -166,6 +166,15 @@ def _fallback_answer(tasks, results):
     return "\n\n---\n\n".join(sections)
 
 
+def _tool_answer(results):
+    """Compose selected tool outputs without dropping any requested tool."""
+    sections = []
+    for key in ["figure", "formula", "author", "word_count"]:
+        if results.get(key):
+            sections.append(results[key])
+    return "\n\n".join(sections)
+
+
 def run_agent(query, pdf_data=None):
     """Run multimodal task decomposition, tool selection, and answer fusion."""
     tasks = _detect_tasks(query)
@@ -173,8 +182,8 @@ def run_agent(query, pdf_data=None):
 
     if tasks == ["general"]:
         final_answer = ask_llm(query)
-    elif "formula" in tasks and results.get("formula"):
-        final_answer = results["formula"]
+    elif any(task in tasks for task in ["formula", "figure", "author", "word_count"]) and _tool_answer(results):
+        final_answer = _tool_answer(results)
     else:
         final_answer = ask_llm(_build_final_prompt(query, tasks, results))
         if final_answer.startswith("\u8c03\u7528\u5931\u8d25") or "DASHSCOPE_API_KEY" in final_answer:

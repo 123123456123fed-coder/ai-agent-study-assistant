@@ -16,10 +16,15 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "\u8fd9\u7bc7\u8bba\u6587\u7684\u6838\u5fc3\u8d21\u732e\u662f\u4ec0\u4e48\uff1f"
 MAX_HISTORY = 12
+APP_VERSION = "2026-06-29-formula-v2"
 
 
 def init_state():
     """Initialize Streamlit session state."""
+    if st.session_state.get("app_version") != APP_VERSION:
+        st.session_state.clear()
+        st.session_state["app_version"] = APP_VERSION
+
     st.session_state.setdefault("messages", [])
     st.session_state.setdefault("rag_ready", False)
     st.session_state.setdefault("current_pdf", "")
@@ -90,6 +95,7 @@ def render_sidebar():
     with st.sidebar:
         st.markdown("## AI Research Assistant Pro")
         st.caption("\u9762\u5411\u8bba\u6587\u9605\u8bfb\u3001\u79d1\u7814\u5b66\u4e60\u4e0e\u6bd4\u8d5b\u7b54\u8fa9\u7684\u667a\u80fd\u52a9\u624b")
+        st.caption(f"Version: {APP_VERSION}")
 
         st.divider()
         st.markdown("### \u529f\u80fd\u6a21\u5757")

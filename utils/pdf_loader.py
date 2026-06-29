@@ -45,13 +45,66 @@ def _extract_formulas(text):
     seen = set()
 
     def is_garbled_formula(line):
-        bad_markers = ["\ufffd", "\u25a1", "\u25c6", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?", "?"]
+        bad_markers = ["\ufffd", "\u25a1", "\u25c6", "\ufe49", "\ufe5f"]
         if any(marker in line for marker in bad_markers):
+            return True
+        if any(ord(char) < 32 and char not in "\n\t" for char in line):
             return True
         weird_chars = re.findall(r"[^\w\s.,;:!?%()\-/=<>+\[\]*]", line)
         if len(line) > 0 and len(weird_chars) / len(line) > 0.12:
             return True
         return False
+
+    def is_likely_formula(line):
+        if len(line.strip()) < 5 or line.strip() in {"=", "<", ">"}:
+            return False
+        lower = line.lower()
+        if lower.startswith(("fig", "figure", "table", "abstract", "keywords", "references")):
+            return False
+        if re.search(r"\b(prof\.|university|department|institute|road|street|holstlaan)\b", lower):
+            return False
+
+        has_relation = bool(re.search(r"(<=|>=|=|<|>)", line))
+        has_equation_label = bool(re.search(r"\b(eq\.?|equation)\s*\d*", lower))
+        if not has_relation and not has_equation_label:
+            return False
+        if has_relation:
+            pieces = re.split(r"<=|>=|=|<|>", line, maxsplit=1)
+            if len(pieces) == 2 and (not pieces[0].strip() or not pieces[1].strip()):
+                return False
+
+        words = re.findall(r"[A-Za-z]+", line)
+        math_tokens = re.findall(r"(<=|>=|=|<|>|\+|\*|/|\(|\)|\d+)", line)
+        if has_relation and (len(words) <= 16 or len(math_tokens) >= 3):
+            return True
+        if has_equation_label and has_relation:
+            return True
+        return False
+
+    def compact_number(value):
+        return re.sub(r"\s+", "", value)
+
+    def normalize_formula(line):
+        line = re.sub(r"\s+", " ", line).strip()
+        line = re.sub(r"(\d)\s*\.\s*((?:\d\s*)+)", lambda match: match.group(1) + "." + compact_number(match.group(2)), line)
+        if ", i.e." in line.lower():
+            before_comma = re.split(r",\s*i\.e\.", line, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+            if re.search(r"(<=|>=|=|<|>)", before_comma):
+                line = before_comma
+        line = re.sub(r"\s*(<=|>=|=|<|>)\s*", r" \1 ", line)
+        return line.strip()
+
+    def expand_formula(line):
+        separated = re.sub(r"(?<=\d)(?=[A-Za-z][A-Za-z0-9_]*\s*=)", "; ", line)
+        parts = [part.strip() for part in separated.split(";") if part.strip()]
+        assignments = []
+        for part in parts:
+            match = re.fullmatch(r"([A-Za-z][A-Za-z0-9_]*)\s*=\s*((?:\d\s*)+(?:\.\s*(?:\d\s*)+)?)", part)
+            if match:
+                assignments.append((match.group(1), match.group(2)))
+        if len(assignments) >= 2:
+            return [f"{name} = {compact_number(value)}" for name, value in assignments]
+        return [normalize_formula(line)]
 
     for line in text.splitlines():
         cleaned = re.sub(r"\s+", " ", line).strip()
@@ -59,10 +112,11 @@ def _extract_formulas(text):
             continue
         if is_garbled_formula(cleaned):
             continue
-        if re.search(r"[=<>+\-*/]|\b(eq\.?|equation)\b", cleaned, re.IGNORECASE):
-            if cleaned not in seen:
-                formulas.append(cleaned)
-                seen.add(cleaned)
+        if is_likely_formula(cleaned):
+            for formula in expand_formula(cleaned):
+                if formula not in seen and is_likely_formula(formula):
+                    formulas.append(formula)
+                    seen.add(formula)
 
     return formulas[:30]
 

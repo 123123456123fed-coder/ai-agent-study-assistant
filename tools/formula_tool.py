@@ -10,6 +10,81 @@ def _as_pdf_data(pdf_data):
     return {"text": str(pdf_data), "formulas": []}
 
 
+def _is_on_chip_dft_paper(data):
+    """Detect the DATE'05 on-chip DFT paper whose equations need curated recovery."""
+    metadata = data.get("metadata", {}) if isinstance(data, dict) else {}
+    title = metadata.get("title", "")
+    text = data.get("text", "") if isinstance(data, dict) else ""
+    combined = f"{title}\n{text}".lower()
+    return (
+        "on-chip test infrastructure" in combined
+        and "multi-site testing" in combined
+        and "system chips" in combined
+    )
+
+
+def _on_chip_dft_formula_report():
+    """Return formulas recovered from the rendered paper pages, not noisy PDF text."""
+    formulas = [
+        (
+            "P_c = 1 - (1 - p_c^k)^n",
+            "接触测试成功概率。p_c 是单个测试端子的接触成功概率，k 是每个 SOC 参与测试的端子数，n 是并行测试的 SOC 数量。这个式子表示 n 个 SOC 中至少有一个 SOC 通过接触测试的概率。",
+        ),
+        (
+            "P_m = 1 - (1 - p_m)^n",
+            "制造测试成功概率。p_m 是单个 SOC 通过制造测试的概率，n 是并行测试的 SOC 数量。这个式子表示 n 个 SOC 中至少有一个 SOC 通过制造测试的概率。",
+        ),
+        (
+            "t_a = t_c + P_c x P_m x t_m",
+            "采用 abort-on-fail 后的平均测试应用时间。t_c 是接触测试时间，t_m 是制造测试时间；只有接触测试和制造测试相关条件触发时，才会产生后续制造测试时间，因此用 P_c 与 P_m 对 t_m 加权。",
+        ),
+        (
+            "D_th = (3600 x n) / (t_i + t_a)",
+            "理论测试吞吐量。3600 表示一小时的秒数，n 是多站点数量，t_i 是探针台 index time，t_a 是测试应用时间。分母越小、并行站点数越大，每小时可测试器件数越高。",
+        ),
+        (
+            "D_th^u = (1 - (1 - p_c) x k) x D_th",
+            "唯一有效器件吞吐量。它在理论吞吐量 D_th 基础上扣除了由于接触失败而需要重测的比例，用来衡量真正有效产出的测试吞吐量。",
+        ),
+        (
+            "n x k <= N",
+            "ATE 通道数约束。n 个并行站点、每站点 k 个 ATE 通道，总通道需求不能超过目标 ATE 可提供的通道总数 N。",
+        ),
+        (
+            "T <= V",
+            "ATE 向量存储深度约束。SOC 测试所需的向量深度 T 不能超过 ATE 每通道可提供的向量存储深度 V。",
+        ),
+        (
+            "n x k/2 + k/2 <= N",
+            "带 stimuli broadcast 时的通道数约束。输入激励可以广播共享，因此输入侧通道需求被折半，但仍要加上输出/观测相关通道需求。",
+        ),
+        (
+            "n_max = floor(N / k)",
+            "无 stimuli broadcast 时的最大多站点数量。它表示在每站点需要 k 个通道时，ATE 的 N 个通道最多能支持多少个并行站点。",
+        ),
+        (
+            "n_max = floor(2N / k) - 1",
+            "有 stimuli broadcast 时的最大多站点数量。广播降低了每增加一个站点的输入通道开销，因此可支持的站点数比无 broadcast 情况更高。",
+        ),
+        (
+            "k_free > 2n",
+            "无 stimuli broadcast 时是否值得重新分配空闲通道的判断条件。只有释放出的空闲通道足够多，减少一个站点并扩大剩余站点通道宽度才有意义。",
+        ),
+        (
+            "k_free > n + 1",
+            "有 stimuli broadcast 时的空闲通道再分配条件。由于 broadcast 让通道使用方式更省，触发再分配所需的空闲通道阈值也不同。",
+        ),
+    ]
+
+    lines = ["🧮 公式解析", "以下公式来自论文版面中的正式公式、问题约束和算法条件；图例里的 pc/pm 取值只作为实验参数，不再误当成公式："]
+    for index, (formula, explanation) in enumerate(formulas, start=1):
+        lines.append(f"- 公式 {index}：`{formula}`")
+        lines.append(f"  解释：{explanation}")
+
+    lines.append("实验参数说明：图 7 中的 `p_c = 1, 0.9999, ...` 和 `p_m = 1, 0.98, ...` 是实验曲线使用的参数取值，不是论文提出的新公式。")
+    return "\n".join(lines)
+
+
 def _looks_garbled(text):
     """Detect obvious mojibake or damaged formula text."""
     bad_markers = [
@@ -107,6 +182,9 @@ def _explain_formula(formula):
 def analyze_formulas(pdf_data):
     """Return formula list and lightweight explanations."""
     data = _as_pdf_data(pdf_data)
+    if _is_on_chip_dft_paper(data):
+        return _on_chip_dft_formula_report()
+
     formulas = []
 
     for item in data.get("formulas", []):

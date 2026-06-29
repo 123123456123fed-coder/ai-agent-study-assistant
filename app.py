@@ -16,7 +16,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "\u8fd9\u7bc7\u8bba\u6587\u7684\u6838\u5fc3\u8d21\u732e\u662f\u4ec0\u4e48\uff1f"
 MAX_HISTORY = 12
-APP_VERSION = "2026-06-29-formula-v2"
+APP_VERSION = "2026-06-29-formula-v3"
 
 
 def init_state():

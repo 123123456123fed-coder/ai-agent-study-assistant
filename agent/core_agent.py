@@ -173,6 +173,8 @@ def run_agent(query, pdf_data=None):
 
     if tasks == ["general"]:
         final_answer = ask_llm(query)
+    elif "formula" in tasks and results.get("formula"):
+        final_answer = results["formula"]
     else:
         final_answer = ask_llm(_build_final_prompt(query, tasks, results))
         if final_answer.startswith("\u8c03\u7528\u5931\u8d25") or "DASHSCOPE_API_KEY" in final_answer:

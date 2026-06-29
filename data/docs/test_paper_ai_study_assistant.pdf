@@ -1,0 +1,92 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 1925 >>
+stream
+BT
+/F1 12 Tf
+50 780 Td
+16 TL
+(Title: A Minimal AI Study Assistant for Research Support) Tj
+T*
+() Tj
+T*
+(Abstract:) Tj
+T*
+(This paper presents a lightweight AI study assistant designed for graduate students.) Tj
+T*
+(The system combines a large language model, simple agent task decomposition, and document retrieval.) Tj
+T*
+(Its goal is to help users understand papers, summarize academic content, and generate study plans.) Tj
+T*
+() Tj
+T*
+(Introduction:) Tj
+T*
+(Graduate students often need to read many research papers in a short time.) Tj
+T*
+(Traditional note-taking tools cannot answer questions based on uploaded documents.) Tj
+T*
+(A retrieval-augmented assistant can reduce reading time and improve research efficiency.) Tj
+T*
+() Tj
+T*
+(Method:) Tj
+T*
+(The system first extracts text from uploaded PDF files.) Tj
+T*
+(Then the text is split into small chunks and converted into vector embeddings.) Tj
+T*
+(A FAISS index stores these vectors and retrieves the most relevant chunks for each user question.) Tj
+T*
+(The retrieved context is passed to a language model to generate grounded answers.) Tj
+T*
+(A simple rule-based agent decides whether the task is question answering, summarization, or study planning.) Tj
+T*
+() Tj
+T*
+(Contributions:) Tj
+T*
+(First, the paper proposes a minimal architecture for an AI learning and research assistant.) Tj
+T*
+(Second, it integrates PDF parsing, vector retrieval, and language model answering in one Streamlit interface.) Tj
+T*
+(Third, it adds a simple agent that can decompose user tasks into summary, planning, and QA steps.) Tj
+T*
+(Fourth, the system is easy to extend with more advanced RAG and multi-agent capabilities.) Tj
+T*
+() Tj
+T*
+(Conclusion:) Tj
+T*
+(The prototype demonstrates that a small and clear system can support academic reading and learning tasks.) Tj
+T*
+(Future work will improve retrieval quality, add citation tracing, and support multiple documents.) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2288
+%%EOF

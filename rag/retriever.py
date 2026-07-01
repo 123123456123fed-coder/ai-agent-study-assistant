@@ -17,6 +17,12 @@ _document_text = ""
 _pdf_data = None
 
 
+def _safe_preview(text, limit=240):
+    """Return a console-safe one-line preview for debug output."""
+    preview = re.sub(r"\s+", " ", text[:limit]).strip()
+    return preview.encode("gbk", errors="replace").decode("gbk", errors="replace")
+
+
 def _quality_penalty(chunk):
     """Penalize noisy formula/table/reference chunks that make poor RAG context."""
     text = chunk.strip()
@@ -117,7 +123,7 @@ def search(query, top_k=3):
         chunk = _chunks[index]
         similarity = min(raw_similarity + keyword_boost(query, chunk), 1.0)
         similarity = max(similarity - _quality_penalty(chunk), 0.0)
-        print(f"RAG similarity={similarity:.4f}, raw={raw_similarity:.4f}, chunk={chunk[:300]}")
+        print(f"RAG similarity={similarity:.4f}, raw={raw_similarity:.4f}, chunk={_safe_preview(chunk)}")
 
         if similarity >= MIN_SIMILARITY:
             candidates.append({"text": chunk, "score": similarity})

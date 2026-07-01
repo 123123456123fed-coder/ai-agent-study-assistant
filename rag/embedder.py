@@ -10,14 +10,20 @@ EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
 
 QUERY_EXPANSIONS = {
     "贡献": "contribution contributions novelty propose proposes proposed present presents model algorithm optimization optimal",
-    "创新": "innovation novelty contribution",
-    "方法": "method methodology approach design",
-    "实验": "experiment evaluation result results",
+    "创新": "innovation novelty contribution proposed present presents",
+    "核心": "core contribution objective problem",
+    "方法": "method methodology approach design algorithm",
+    "算法": "algorithm step optimization search",
+    "实验": "experiment evaluation result results throughput",
+    "结果": "experiment evaluation result results throughput",
     "结论": "conclusion future work",
     "摘要": "abstract summary",
+    "总结": "abstract summary overview",
     "研究": "research problem objective",
     "芯片": "chip soc system-on-chip",
-    "测试": "test testing",
+    "测试": "test testing throughput ATE",
+    "图表": "figure table throughput vector memory",
+    "公式": "equation formula constraint throughput probability",
     "DFT": "DFT design-for-test design for test testability",
 }
 
@@ -31,7 +37,7 @@ def load_model():
     """Load the embedding model lazily and cache it for Streamlit Cloud."""
     from sentence_transformers import SentenceTransformer
 
-    return SentenceTransformer("all-MiniLM-L6-v2")
+    return SentenceTransformer(EMBEDDING_MODEL_NAME)
 
 
 def _get_sentence_transformer():
@@ -44,7 +50,8 @@ def _get_sentence_transformer():
 
 def expand_query(query):
     """Add small bilingual hints so Chinese questions can match English papers."""
-    expansions = [extra for key, extra in QUERY_EXPANSIONS.items() if key.lower() in query.lower()]
+    query_lower = query.lower()
+    expansions = [extra for key, extra in QUERY_EXPANSIONS.items() if key.lower() in query_lower]
     if expansions:
         return query + " " + " ".join(expansions)
     return query

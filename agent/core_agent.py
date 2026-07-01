@@ -80,6 +80,19 @@ def _format_rag_results(chunks):
     return "\n\n".join(lines)
 
 
+def _build_rag_context(chunks):
+    """Build plain retrieved context for answer generation."""
+    if not chunks:
+        return NO_CONTEXT
+
+    sections = []
+    for index, item in enumerate(chunks, start=1):
+        text = item.get("text", "").strip()
+        if text:
+            sections.append(f"[片段{index}]\n{text}")
+    return "\n\n".join(sections) if sections else NO_CONTEXT
+
+
 def _rag_confidence(chunks):
     """Classify the latest RAG result confidence."""
     if not chunks:
@@ -159,6 +172,7 @@ def _collect_results(query, tasks, pdf_data, paper_id=None):
     if any(task in tasks for task in ["rag", "summary", "general"]):
         rag_chunks = retriever.search(query, top_k=5, paper_id=paper_id)
         results["rag_chunks"] = rag_chunks
+        results["rag_context"] = _build_rag_context(rag_chunks)
         results["rag_confidence"] = _rag_confidence(rag_chunks)
         results["rag"] = _format_rag_results(rag_chunks)
 
@@ -187,44 +201,37 @@ def _is_summary_request(query, tasks):
 def _build_question_prompt(query, tasks, results):
     """Build a question-grounded QA prompt instead of a generic paper summary prompt."""
     return f"""
-\u4f60\u662f\u79d1\u7814\u8bba\u6587\u95ee\u7b54 AI \u52a9\u624b\uff0c\u8bf7\u4e25\u683c\u56f4\u7ed5\u7528\u6237\u95ee\u9898\u4f5c\u7b54\uff0c\u4e0d\u8981\u9ed8\u8ba4\u8f93\u51fa\u6574\u7bc7\u8bba\u6587\u603b\u7ed3\u3002
+你是科研论文问答 AI 助手。
 
-\u3010\u4efb\u52a1\u7c7b\u578b\u3011
-{", ".join(tasks)}
-
-\u3010\u8bba\u6587\u6587\u672c\u3011
-{results.get("rag", "")}
-
-\u3010\u56fe\u8868\u4fe1\u606f\u3011
-{results.get("figure", "")}
-
-\u3010\u516c\u5f0f\u4fe1\u606f\u3011
-{results.get("formula", "")}
-
-\u3010\u5143\u4fe1\u606f\u3011
-{results.get("author", "")}
-
-\u3010\u5b57\u6570/\u7ed3\u6784\u7edf\u8ba1\u3011
-{results.get("word_count", "")}
-
-\u3010\u5de5\u5177\u72b6\u6001\u3011
-{results.get("tool_status", "\u6b63\u5e38")}
-
-\u3010\u7528\u6237\u95ee\u9898\u3011
+用户问题：
 {query}
 
-\u3010RAG \u7f6e\u4fe1\u5ea6\u3011
+相关文档内容：
+{results.get("rag_context", NO_CONTEXT)}
+
+补充图表信息：
+{results.get("figure", "")}
+
+补充公式信息：
+{results.get("formula", "")}
+
+补充元信息：
+{results.get("author", "")}
+
+补充统计信息：
+{results.get("word_count", "")}
+
+检索置信度：
 {results.get("rag_confidence", "none")}
 
-\u8981\u6c42\uff1a
-- \u76f4\u63a5\u56de\u7b54\u7528\u6237\u95ee\u9898\uff0c\u7b2c\u4e00\u53e5\u5c31\u7ed9\u51fa\u7ed3\u8bba
-- \u53ea\u805a\u7126\u95ee\u9898\u76f8\u5173\u5185\u5bb9\uff0c\u4e0d\u8981\u987a\u5e26\u6982\u62ec\u5168\u6587
-- \u9664\u975e\u7528\u6237\u660e\u786e\u8981\u6c42\u201c\u603b\u7ed3/\u6982\u62ec/\u6458\u8981\u201d\uff0c\u5426\u5219\u4e0d\u8981\u8f93\u51fa\u6574\u7bc7\u8bba\u6587\u603b\u7ed3
-- \u4f18\u5148\u4f7f\u7528\u63d0\u4f9b\u7684\u68c0\u7d22\u7ed3\u679c\u548c\u5de5\u5177\u7ed3\u679c
-- \u5982\u679c RAG \u7f6e\u4fe1\u5ea6\u8f83\u4f4e\u6216\u6587\u6863\u8bc1\u636e\u4e0d\u8db3\uff0c\u4ecd\u7136\u8981\u7ed9\u51fa\u6709\u5e2e\u52a9\u7684\u56de\u7b54
-- \u9700\u8981\u660e\u786e\u533a\u5206\u201c\u6587\u6863\u4f9d\u636e\u201d\u548c\u201c\u901a\u7528\u63a8\u65ad\u201d
-- \u4e0d\u8981\u91cd\u590d\u8f93\u51fa\u76f8\u540c\u4fe1\u606f
-- \u8f93\u51fa\u7ed3\u6784\u5316\u56de\u7b54\uff0c\u5305\u542b\u201c\u4efb\u52a1\u5224\u65ad\u3001\u4f9d\u636e\u3001\u6700\u7ec8\u56de\u7b54\u201d
+要求：
+- 必须先回答“用户问题”，不要默认输出整篇论文总结
+- 必须优先使用“相关文档内容”作答
+- 如果文档片段已经能回答问题，就不要泛化成全文概括
+- 回答必须和问题直接对应，例如问贡献就只答贡献，问方法就只答方法
+- 可以引用片段中的关键信息，但不要机械复述全部片段
+- 如果文档证据不足，再补充少量“通用推断”，并明确说明这是基于通用知识
+- 输出结构化回答，包含“任务判断、依据、最终回答”
 """
 
 
@@ -237,7 +244,7 @@ def _build_summary_prompt(query, tasks, results):
 {query}
 
 \u3010RAG \u68c0\u7d22\u7ed3\u679c\u3011
-{results.get("rag", "")}
+{results.get("rag_context", NO_CONTEXT)}
 
 \u3010\u56fe\u8868\u4fe1\u606f\u3011
 {results.get("figure", "")}
@@ -265,7 +272,7 @@ def _build_general_fallback_prompt(query, tasks, results):
 {", ".join(tasks)}
 
 \u3010\u53ef\u7528\u6587\u6863\u7247\u6bb5\u3011
-{results.get("rag", NO_CONTEXT)}
+{results.get("rag_context", NO_CONTEXT)}
 
 \u3010\u5176\u4ed6\u5de5\u5177\u7ed3\u679c\u3011
 \u4f5c\u8005\uff1a{results.get("author", "")}
@@ -333,8 +340,6 @@ def run_agent(query, pdf_data=None, paper_id=None):
         final_answer = ask_llm(query)
     elif any(task in tasks for task in ["formula", "figure", "author", "word_count"]) and _tool_answer(results):
         final_answer = _tool_answer(results)
-    elif _curated_dft_answer(query, data):
-        final_answer = _curated_dft_answer(query, data)
     else:
         if summary_request:
             prompt = _build_summary_prompt(query, tasks, results)
@@ -362,3 +367,5 @@ def run_agent(query, pdf_data=None, paper_id=None):
         "\U0001F9E0 \u591a\u5de5\u5177\u878d\u5408\u56de\u7b54\n"
         f"{final_answer}"
     )
+
+

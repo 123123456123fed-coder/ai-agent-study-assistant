@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v18"
+APP_VERSION = "2026-07-01-product-v19"
 
 
 def init_state():
@@ -37,6 +37,7 @@ def init_state():
     st.session_state.setdefault("chunk_count", 0)
     st.session_state.setdefault("retrieval_backend", "未构建")
     st.session_state.setdefault("pdf_data", None)
+    st.session_state.setdefault("show_left_panel", True)
     st.session_state.setdefault("show_right_panel", True)
 
 
@@ -254,17 +255,6 @@ def inject_style():
             background: transparent !important;
             box-shadow: none !important;
         }
-        div[data-testid="collapsedControl"],
-        button[data-testid="stBaseButton-header"] {
-            display: flex !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            pointer-events: auto !important;
-            width: auto !important;
-            height: auto !important;
-            overflow: visible !important;
-            z-index: 10000 !important;
-        }
         section[data-testid="stSidebar"] {
             min-width: 310px;
         }
@@ -395,6 +385,93 @@ def render_sidebar():
             st.caption(f"图表：{record.get('figure_count', 0) + record.get('table_count', 0)}")
         else:
             st.warning("请选择或上传论文。")
+
+
+def render_left_panel():
+    """Render the custom left document panel."""
+    title_col, toggle_col = st.columns([0.86, 0.14], vertical_alignment="center")
+    with title_col:
+        st.markdown("## AI Research Assistant Pro")
+    with toggle_col:
+        if st.button("«", key="toggle_left_panel_close", help="收起论文库"):
+            st.session_state.show_left_panel = False
+            st.rerun()
+
+    st.caption("NotebookLM 式论文库 + ChatGPT 式对话 + 科研分析面板")
+    st.caption(f"Version: {APP_VERSION}")
+
+    st.divider()
+    st.markdown("### 📄 我的论文库")
+    papers = list(st.session_state["papers"].keys())
+    if papers:
+        selected = st.selectbox(
+            "选择当前论文",
+            options=papers,
+            index=papers.index(st.session_state["current_paper"]) if st.session_state["current_paper"] in papers else 0,
+            key="left_current_paper",
+        )
+        if selected != st.session_state.get("current_paper"):
+            select_paper(selected)
+            st.rerun()
+    else:
+        st.info("还没有上传论文。")
+
+    for name in papers:
+        record = st.session_state["papers"][name]
+        marker = "当前" if name == st.session_state.get("current_paper") else "论文"
+        st.markdown(
+            f"""
+            <div class="paper-chip">
+                <strong>{marker}</strong><br/>
+                {name}<br/>
+                <small>{record.get('chunk_count', 0)} chunks · {record.get('word_count', 0)} tokens</small>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+    st.markdown("### 上传新论文")
+    uploaded_files = st.file_uploader("上传 PDF", type=["pdf"], accept_multiple_files=True, key="left_pdf_upload")
+    if uploaded_files:
+        for uploaded_file in uploaded_files:
+            if uploaded_file.name in st.session_state["papers"]:
+                continue
+            with st.spinner(f"正在解析 {uploaded_file.name}..."):
+                file_path = save_uploaded_pdf(uploaded_file)
+                record = build_paper_record(file_path, uploaded_file.name)
+                st.session_state["papers"][uploaded_file.name] = record
+                st.session_state["current_paper"] = uploaded_file.name
+                sync_current_status(record)
+        st.success("论文已加入论文库。")
+
+    if st.button("加载示例论文", use_container_width=True, key="left_load_demo"):
+        load_demo_pdf()
+
+    if st.button("清空对话", use_container_width=True, key="left_clear_chat"):
+        st.session_state["messages"] = []
+        st.session_state["last_retrieval"] = []
+        st.rerun()
+
+    st.divider()
+    st.markdown("### 论文基本信息")
+    record = current_paper_record()
+    if record:
+        meta = record.get("pdf_data", {}).get("metadata", {})
+        st.markdown(f"**当前论文：** {record.get('name')}")
+        st.caption(f"标题：{meta.get('title') or '未识别'}")
+        st.caption(f"作者：{meta.get('authors') or '未识别'}")
+        st.caption(f"字数/Token：{record.get('word_count', 0)}")
+        st.caption(f"图表：{record.get('figure_count', 0) + record.get('table_count', 0)}")
+    else:
+        st.warning("请选择或上传论文。")
+
+
+def render_left_panel_toggle():
+    """Render the compact left panel toggle."""
+    if st.button("»", key="toggle_left_panel_open", help="展开论文库"):
+        st.session_state.show_left_panel = True
+        st.rerun()
 
 
 def render_info_panel():
@@ -555,24 +632,48 @@ def main():
     st.set_page_config(
         page_title="AI Research Assistant Pro",
         layout="wide",
-        initial_sidebar_state="expanded",
+        initial_sidebar_state="collapsed",
     )
     init_state()
     inject_style()
-    render_sidebar()
 
-    if st.session_state.show_right_panel:
-        col_main, col_right = st.columns([2.8, 1.0], gap="large")
-        with col_main:
+    left_open = st.session_state.show_left_panel
+    right_open = st.session_state.show_right_panel
+
+    if left_open and right_open:
+        left_col, main_col, right_col = st.columns([1.05, 2.6, 1.0], gap="large")
+        with left_col:
+            render_left_panel()
+        with main_col:
             render_chat_area()
-        with col_right:
+        with right_col:
+            render_right_panel_toggle()
+            render_info_panel()
+    elif left_open and not right_open:
+        left_col, main_col, right_toggle_col = st.columns([1.05, 3.0, 0.08], gap="large")
+        with left_col:
+            render_left_panel()
+        with main_col:
+            render_chat_area()
+        with right_toggle_col:
+            render_right_panel_toggle()
+    elif not left_open and right_open:
+        left_toggle_col, main_col, right_col = st.columns([0.08, 2.9, 1.0], gap="large")
+        with left_toggle_col:
+            render_left_panel_toggle()
+        with main_col:
+            render_chat_area()
+        with right_col:
             render_right_panel_toggle()
             render_info_panel()
     else:
-        toggle_col, _ = st.columns([0.22, 2.78])
-        with toggle_col:
+        left_toggle_col, main_col, right_toggle_col = st.columns([0.08, 3.6, 0.08], gap="large")
+        with left_toggle_col:
+            render_left_panel_toggle()
+        with main_col:
+            render_chat_area()
+        with right_toggle_col:
             render_right_panel_toggle()
-        render_chat_area()
 
 
 if __name__ == "__main__":

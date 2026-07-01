@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v13"
+APP_VERSION = "2026-07-01-product-v14"
 
 
 def init_state():
@@ -230,7 +230,7 @@ def inject_style():
         .block-container {
             max-width: 1480px;
             padding-top: 1.4rem;
-            padding-bottom: 2rem;
+            padding-bottom: 7.5rem;
         }
         header[data-testid="stHeader"],
         div[data-testid="stToolbar"],
@@ -275,6 +275,25 @@ def inject_style():
             padding: 8px 10px;
             margin-bottom: 8px;
             background: rgba(255, 255, 255, 0.9);
+        }
+        div[data-testid="stChatInput"] {
+            position: fixed;
+            left: 50%;
+            bottom: 18px;
+            transform: translateX(-50%);
+            width: min(760px, calc(100vw - 420px));
+            z-index: 9999;
+            padding: 8px 10px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+            backdrop-filter: blur(10px);
+        }
+        @media (max-width: 900px) {
+            div[data-testid="stChatInput"] {
+                left: 50%;
+                width: calc(100vw - 32px);
+            }
         }
         </style>
         """,

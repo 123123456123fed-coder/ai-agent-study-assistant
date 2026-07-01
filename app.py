@@ -24,7 +24,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v21"
+APP_VERSION = "2026-07-01-product-v22"
 
 
 def init_state():
@@ -266,8 +266,32 @@ def inject_style():
             background: transparent !important;
             box-shadow: none !important;
         }
+        [data-testid="stSidebar"] {
+            background-color: #f5f6f8 !important;
+        }
         section[data-testid="stSidebar"] {
             min-width: 310px;
+        }
+        .left-panel-title {
+            color: #111111;
+            font-weight: 750;
+            line-height: 1.12;
+            margin-bottom: 8px;
+        }
+        .left-panel-subtitle {
+            color: #666666;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+        .left-panel-meta {
+            color: #999999;
+            font-size: 0.78rem;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background: #ffffff;
+            border-color: #eaeaea !important;
+            border-radius: 10px !important;
         }
         .workspace-header {
             padding: 10px 0 14px 0;
@@ -402,80 +426,89 @@ def render_left_panel():
     """Render the custom left document panel."""
     title_col, toggle_col = st.columns([0.86, 0.14], vertical_alignment="center")
     with title_col:
-        st.markdown("## AI Research Assistant Pro")
+        st.markdown('<h2 class="left-panel-title">AI Research Assistant Pro</h2>', unsafe_allow_html=True)
     with toggle_col:
         if st.button("«", key="toggle_left_panel_close", help="收起论文库"):
             st.session_state.show_left_panel = False
             st.rerun()
 
-    st.caption("NotebookLM 式论文库 + ChatGPT 式对话 + 科研分析面板")
-    st.caption(f"Version: {APP_VERSION}")
+    st.markdown(
+        f"""
+        <div class="left-panel-subtitle">NotebookLM 式论文库 + ChatGPT 式对话 + 科研分析面板</div>
+        <div class="left-panel-meta">Version: {APP_VERSION}</div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    st.divider()
-    st.markdown("### 📄 我的论文库")
     papers = list(st.session_state["papers"].keys())
-    if papers:
-        selected = st.selectbox(
-            "选择当前论文",
-            options=papers,
-            index=papers.index(st.session_state["current_paper"]) if st.session_state["current_paper"] in papers else 0,
-            key="left_current_paper",
-        )
-        if selected != st.session_state.get("current_paper"):
-            select_paper(selected)
+
+    st.write("")
+    with st.container(border=True):
+        st.markdown("### 📄 我的论文库")
+        if papers:
+            selected = st.selectbox(
+                "选择当前论文",
+                options=papers,
+                index=papers.index(st.session_state["current_paper"]) if st.session_state["current_paper"] in papers else 0,
+                key="left_current_paper",
+            )
+            if selected != st.session_state.get("current_paper"):
+                select_paper(selected)
+                st.rerun()
+        else:
+            st.info("还没有上传论文。")
+
+        for name in papers:
+            record = st.session_state["papers"][name]
+            marker = "当前" if name == st.session_state.get("current_paper") else "论文"
+            st.markdown(
+                f"""
+                <div class="paper-chip">
+                    <strong>{marker}</strong><br/>
+                    {name}<br/>
+                    <small>{record.get('chunk_count', 0)} chunks · {record.get('word_count', 0)} tokens</small>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.write("")
+    with st.container(border=True):
+        st.markdown("### 上传新论文")
+        uploaded_files = st.file_uploader("上传 PDF", type=["pdf"], accept_multiple_files=True, key="left_pdf_upload")
+        if uploaded_files:
+            for uploaded_file in uploaded_files:
+                if uploaded_file.name in st.session_state["papers"]:
+                    continue
+                with st.spinner(f"正在解析 {uploaded_file.name}..."):
+                    file_path = save_uploaded_pdf(uploaded_file)
+                    record = build_paper_record(file_path, uploaded_file.name)
+                    st.session_state["papers"][uploaded_file.name] = record
+                    st.session_state["current_paper"] = uploaded_file.name
+                    sync_current_status(record)
+            st.success("论文已加入论文库。")
+
+        if st.button("加载示例论文", use_container_width=True, key="left_load_demo"):
+            load_demo_pdf()
+
+        if st.button("清空对话", use_container_width=True, key="left_clear_chat"):
+            st.session_state["messages"] = []
+            st.session_state["last_retrieval"] = []
             st.rerun()
-    else:
-        st.info("还没有上传论文。")
 
-    for name in papers:
-        record = st.session_state["papers"][name]
-        marker = "当前" if name == st.session_state.get("current_paper") else "论文"
-        st.markdown(
-            f"""
-            <div class="paper-chip">
-                <strong>{marker}</strong><br/>
-                {name}<br/>
-                <small>{record.get('chunk_count', 0)} chunks · {record.get('word_count', 0)} tokens</small>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.divider()
-    st.markdown("### 上传新论文")
-    uploaded_files = st.file_uploader("上传 PDF", type=["pdf"], accept_multiple_files=True, key="left_pdf_upload")
-    if uploaded_files:
-        for uploaded_file in uploaded_files:
-            if uploaded_file.name in st.session_state["papers"]:
-                continue
-            with st.spinner(f"正在解析 {uploaded_file.name}..."):
-                file_path = save_uploaded_pdf(uploaded_file)
-                record = build_paper_record(file_path, uploaded_file.name)
-                st.session_state["papers"][uploaded_file.name] = record
-                st.session_state["current_paper"] = uploaded_file.name
-                sync_current_status(record)
-        st.success("论文已加入论文库。")
-
-    if st.button("加载示例论文", use_container_width=True, key="left_load_demo"):
-        load_demo_pdf()
-
-    if st.button("清空对话", use_container_width=True, key="left_clear_chat"):
-        st.session_state["messages"] = []
-        st.session_state["last_retrieval"] = []
-        st.rerun()
-
-    st.divider()
-    st.markdown("### 论文基本信息")
-    record = current_paper_record()
-    if record:
-        meta = record.get("pdf_data", {}).get("metadata", {})
-        st.markdown(f"**当前论文：** {record.get('name')}")
-        st.caption(f"标题：{meta.get('title') or '未识别'}")
-        st.caption(f"作者：{meta.get('authors') or '未识别'}")
-        st.caption(f"字数/Token：{record.get('word_count', 0)}")
-        st.caption(f"图表：{record.get('figure_count', 0) + record.get('table_count', 0)}")
-    else:
-        st.warning("请选择或上传论文。")
+    st.write("")
+    with st.container(border=True):
+        st.markdown("### 论文基本信息")
+        record = current_paper_record()
+        if record:
+            meta = record.get("pdf_data", {}).get("metadata", {})
+            st.markdown(f"**当前论文：** {record.get('name')}")
+            st.caption(f"标题：{meta.get('title') or '未识别'}")
+            st.caption(f"作者：{meta.get('authors') or '未识别'}")
+            st.caption(f"字数/Token：{record.get('word_count', 0)}")
+            st.caption(f"图表：{record.get('figure_count', 0) + record.get('table_count', 0)}")
+        else:
+            st.warning("请选择或上传论文。")
 
 
 def render_left_panel_toggle():

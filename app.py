@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v10"
+APP_VERSION = "2026-07-01-product-v11"
 
 
 def init_state():
@@ -348,6 +348,51 @@ def render_sidebar():
 def render_info_panel():
     """Render right-side paper analysis panel."""
     record = current_paper_record()
+    title_col, toggle_col = st.columns([0.86, 0.14], vertical_alignment="center")
+    with title_col:
+        st.markdown("### 论文分析")
+    with toggle_col:
+        if st.button("»", key="collapse_info_panel", help="收起论文分析面板"):
+            st.session_state["info_panel_open"] = False
+            st.rerun()
+
+    if not record:
+        st.info("上传论文后，这里会显示作者、图表、公式和 RAG 摘要。")
+        return
+
+    pdf_data = record.get("pdf_data", {})
+    meta = pdf_data.get("metadata", {})
+    counts = paper_counts(pdf_data)
+
+    st.markdown(f"**作者**  \n{meta.get('authors') or '未识别'}")
+    metric_col_1, metric_col_2 = st.columns(2)
+    with metric_col_1:
+        st.metric("图表", counts["figures"] + counts["tables"])
+    with metric_col_2:
+        st.metric("公式", counts["formulas"])
+
+    st.divider()
+    st.markdown("### RAG 摘要")
+    chunks = st.session_state.get("last_retrieval", [])
+    if not chunks:
+        st.caption("提问后展示 Top-3 检索摘要。")
+        return
+
+    for index, item in enumerate(chunks[:3], start=1):
+        score = item.get("score", 0.0)
+        text = item.get("text", "").strip()
+        preview = text[:260] + ("..." if len(text) > 260 else "")
+        st.markdown(
+            f"""
+            <div class="chunk-card">
+                <strong>Top {index}</strong> · {score:.3f}<br/>
+                {preview}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    return
+
     st.markdown("<div style='height: 1.25rem;'></div>", unsafe_allow_html=True)
     st.markdown("### 论文分析面板")
 
@@ -470,16 +515,16 @@ def main():
     inject_style()
     render_sidebar()
 
-    main_col, info_col, toggle_col = st.columns([0.66, 0.30, 0.04], gap="large")
-    with main_col:
+    col_left, col_main, col_right = st.columns([1.2, 2.6, 1.2], gap="large")
+    with col_left:
+        st.empty()
+    with col_main:
         render_chat_area()
-    with info_col:
+    with col_right:
         if st.session_state.get("info_panel_open", True):
             render_info_panel()
         else:
-            st.empty()
-    with toggle_col:
-        render_info_panel_toggle()
+            render_info_panel_toggle()
 
 
 if __name__ == "__main__":

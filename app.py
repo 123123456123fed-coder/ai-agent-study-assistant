@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v11"
+APP_VERSION = "2026-07-01-product-v12"
 
 
 def init_state():
@@ -37,7 +37,7 @@ def init_state():
     st.session_state.setdefault("chunk_count", 0)
     st.session_state.setdefault("retrieval_backend", "未构建")
     st.session_state.setdefault("pdf_data", None)
-    st.session_state.setdefault("info_panel_open", True)
+    st.session_state.setdefault("show_right_panel", True)
 
 
 def current_paper_record():
@@ -348,13 +348,7 @@ def render_sidebar():
 def render_info_panel():
     """Render right-side paper analysis panel."""
     record = current_paper_record()
-    title_col, toggle_col = st.columns([0.86, 0.14], vertical_alignment="center")
-    with title_col:
-        st.markdown("### 论文分析")
-    with toggle_col:
-        if st.button("»", key="collapse_info_panel", help="收起论文分析面板"):
-            st.session_state["info_panel_open"] = False
-            st.rerun()
+    st.markdown("### 论文分析")
 
     if not record:
         st.info("上传论文后，这里会显示作者、图表、公式和 RAG 摘要。")
@@ -445,17 +439,11 @@ def render_info_panel():
         )
 
 
-def render_info_panel_toggle():
-    """Render a compact right-edge toggle for the analysis panel."""
-    st.markdown("<div style='height: 1.25rem;'></div>", unsafe_allow_html=True)
-    if st.session_state.get("info_panel_open", True):
-        if st.button("»", key="collapse_info_panel", help="收起论文分析面板"):
-            st.session_state["info_panel_open"] = False
-            st.rerun()
-    else:
-        if st.button("«", key="expand_info_panel_main", help="展开论文分析面板"):
-            st.session_state["info_panel_open"] = True
-            st.rerun()
+def render_right_panel_toggle():
+    """Render the single custom control for the right analysis panel."""
+    if st.button("📊 切换论文分析面板", use_container_width=True, key="toggle_right_panel"):
+        st.session_state.show_right_panel = not st.session_state.show_right_panel
+        st.rerun()
 
 
 def render_chat_area():
@@ -521,10 +509,9 @@ def main():
     with col_main:
         render_chat_area()
     with col_right:
-        if st.session_state.get("info_panel_open", True):
+        render_right_panel_toggle()
+        if st.session_state.show_right_panel:
             render_info_panel()
-        else:
-            render_info_panel_toggle()
 
 
 if __name__ == "__main__":

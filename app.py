@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v14"
+APP_VERSION = "2026-07-01-product-v15"
 
 
 def init_state():
@@ -232,7 +232,6 @@ def inject_style():
             padding-top: 1.4rem;
             padding-bottom: 7.5rem;
         }
-        header[data-testid="stHeader"],
         div[data-testid="stToolbar"],
         div[data-testid="stDecoration"],
         div[data-testid="stStatusWidget"],
@@ -241,6 +240,17 @@ def inject_style():
             display: none !important;
             visibility: hidden !important;
             height: 0 !important;
+        }
+        header[data-testid="stHeader"] {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        div[data-testid="collapsedControl"],
+        button[data-testid="stBaseButton-header"] {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            pointer-events: auto !important;
         }
         section[data-testid="stSidebar"] {
             min-width: 310px;

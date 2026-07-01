@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v15"
+APP_VERSION = "2026-07-01-product-v16"
 
 
 def init_state():
@@ -232,9 +232,7 @@ def inject_style():
             padding-top: 1.4rem;
             padding-bottom: 7.5rem;
         }
-        div[data-testid="stToolbar"],
         div[data-testid="stDecoration"],
-        div[data-testid="stStatusWidget"],
         .stAppDeployButton,
         iframe[title="streamlit_app_badge"] {
             display: none !important;
@@ -537,7 +535,11 @@ def render_chat_area():
 
 def main():
     """Render the product UI."""
-    st.set_page_config(page_title="AI Research Assistant Pro", layout="wide")
+    st.set_page_config(
+        page_title="AI Research Assistant Pro",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
     init_state()
     inject_style()
     render_sidebar()

@@ -187,7 +187,7 @@ def run_user_query(prompt):
     pdf_data = current_pdf_data()
     paper_id = st.session_state.get("current_paper_id") or record.get("paper_id", record["name"])
     st.session_state["last_query"] = prompt
-    st.session_state["last_retrieval"] = retriever.search(prompt, top_k=3, paper_id=paper_id)
+    st.session_state["last_retrieval"] = retriever.search(prompt, top_k=5, paper_id=paper_id)
 
     add_message("user", prompt)
     with st.spinner("AI正在分析论文..."):

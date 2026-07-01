@@ -15,7 +15,7 @@ from rag.embedder import (
 from utils.pdf_loader import load_pdf
 
 
-MIN_SIMILARITY = 0.2
+MIN_SIMILARITY = 0.15
 DEFAULT_PAPER_ID = "__default__"
 
 paper_index_map = {}
@@ -135,7 +135,7 @@ def build_from_pdf(file_path, paper_id=DEFAULT_PAPER_ID):
     return build_from_data(load_pdf(file_path), paper_id=paper_id)
 
 
-def search(query, top_k=3, paper_id=None):
+def search(query, top_k=5, paper_id=None):
     """Search one paper's FAISS index and return top-k chunks."""
     resolved_id = _resolve_paper_id(paper_id)
     state = paper_index_map.get(resolved_id)
@@ -151,7 +151,7 @@ def search(query, top_k=3, paper_id=None):
     if query_vector is None:
         return []
 
-    k = min(max(top_k * 5, 10), len(chunks))
+    k = min(max(top_k * 4, 8), len(chunks))
     scores, indices = index.search(query_vector, k)
     candidates = []
 
@@ -168,8 +168,14 @@ def search(query, top_k=3, paper_id=None):
             f"raw={raw_similarity:.4f}, chunk={_safe_preview(chunk)}"
         )
 
-        if similarity >= MIN_SIMILARITY:
-            candidates.append({"text": chunk, "score": similarity, "paper_id": resolved_id})
+        candidates.append(
+            {
+                "text": chunk,
+                "score": similarity,
+                "paper_id": resolved_id,
+                "low_confidence": similarity < MIN_SIMILARITY,
+            }
+        )
 
     candidates.sort(key=lambda item: item["score"], reverse=True)
     return candidates[:top_k]

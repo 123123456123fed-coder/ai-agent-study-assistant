@@ -11,6 +11,7 @@ from utils.pdf_loader import load_pdf
 
 
 NO_CONTEXT = "\u672a\u5728\u6587\u6863\u4e2d\u627e\u5230\u76f8\u5173\u5185\u5bb9\u3002"
+LOW_RAG_CONFIDENCE = 0.2
 
 ZH_RAG_HINTS = ["\u8bba\u6587", "\u6587\u6863", "\u6587\u7ae0", "\u8fd9\u7bc7", "\u603b\u7ed3", "\u8d21\u732e", "\u65b9\u6cd5", "\u5b9e\u9a8c", "\u7ed3\u8bba", "\u6838\u5fc3"]
 ZH_SUMMARY_HINTS = ["\u603b\u7ed3", "\u6982\u62ec", "\u6458\u8981", "\u5b66\u4e60\u8ba1\u5212"]
@@ -77,6 +78,14 @@ def _format_rag_results(chunks):
         text = item.get("text", "").strip()
         lines.append(f"\u7247\u6bb5 {index}\uff08\u76f8\u4f3c\u5ea6\uff1a{score:.3f}\uff09\uff1a\n{text}")
     return "\n\n".join(lines)
+
+
+def _rag_confidence(chunks):
+    """Classify the latest RAG result confidence."""
+    if not chunks:
+        return "none"
+    best_score = max(item.get("score", 0.0) for item in chunks)
+    return "low" if best_score < LOW_RAG_CONFIDENCE else "normal"
 
 
 def _ensure_pdf_data(pdf_data, paper_id=None):
@@ -148,7 +157,10 @@ def _collect_results(query, tasks, pdf_data, paper_id=None):
     data = _ensure_pdf_data(pdf_data, paper_id=paper_id)
 
     if any(task in tasks for task in ["rag", "summary"]):
-        results["rag"] = _format_rag_results(retriever.search(query, top_k=3, paper_id=paper_id))
+        rag_chunks = retriever.search(query, top_k=5, paper_id=paper_id)
+        results["rag_chunks"] = rag_chunks
+        results["rag_confidence"] = _rag_confidence(rag_chunks)
+        results["rag"] = _format_rag_results(rag_chunks)
 
     if not data:
         if any(task in tasks for task in ["author", "word_count", "figure", "formula"]):
@@ -196,13 +208,44 @@ def _build_final_prompt(query, tasks, results):
 \u3010\u7528\u6237\u95ee\u9898\u3011
 {query}
 
+\u3010RAG \u7f6e\u4fe1\u5ea6\u3011
+{results.get("rag_confidence", "none")}
+
 \u8981\u6c42\uff1a
-- \u4e0d\u5141\u8bb8\u7f16\u9020
-- \u5fc5\u987b\u57fa\u4e8e\u63d0\u4f9b\u5185\u5bb9
-- \u5de5\u5177\u7ed3\u679c\u4f18\u5148\u4e8e\u6a21\u578b\u63a8\u6f14
-- \u5982\u679c\u5185\u5bb9\u4e2d\u6ca1\u6709\u7b54\u6848\uff0c\u56de\u7b54\u201c\u6587\u6863\u4e2d\u672a\u63d0\u53ca\u201d
+- \u4f18\u5148\u4f7f\u7528\u63d0\u4f9b\u7684\u68c0\u7d22\u7ed3\u679c\u548c\u5de5\u5177\u7ed3\u679c
+- \u5982\u679c RAG \u7f6e\u4fe1\u5ea6\u8f83\u4f4e\u6216\u6587\u6863\u8bc1\u636e\u4e0d\u8db3\uff0c\u4ecd\u7136\u8981\u7ed9\u51fa\u6709\u5e2e\u52a9\u7684\u56de\u7b54
+- \u9700\u8981\u660e\u786e\u533a\u5206\u201c\u6587\u6863\u4f9d\u636e\u201d\u548c\u201c\u901a\u7528\u63a8\u65ad\u201d
 - \u4e0d\u8981\u91cd\u590d\u8f93\u51fa\u76f8\u540c\u4fe1\u606f
 - \u8f93\u51fa\u7ed3\u6784\u5316\u56de\u7b54\uff0c\u5305\u542b\u201c\u4efb\u52a1\u5224\u65ad\u3001\u4f9d\u636e\u3001\u6700\u7ec8\u56de\u7b54\u201d
+"""
+
+
+def _build_general_fallback_prompt(query, tasks, results):
+    """Build a best-effort prompt when RAG evidence is weak or empty."""
+    return f"""
+\u4f60\u662f\u79d1\u7814 AI \u52a9\u624b\uff0c\u73b0\u5728\u6587\u6863\u68c0\u7d22\u7ed3\u679c\u8f83\u5f31\u6216\u4e0d\u5b8c\u6574\uff0c\u4f46\u4f60\u4ecd\u7136\u9700\u8981\u7ed9\u7528\u6237\u4e00\u4e2a\u6709\u5e2e\u52a9\u7684\u56de\u7b54\u3002
+
+\u3010\u4efb\u52a1\u7c7b\u578b\u3011
+{", ".join(tasks)}
+
+\u3010\u53ef\u7528\u6587\u6863\u7247\u6bb5\u3011
+{results.get("rag", NO_CONTEXT)}
+
+\u3010\u5176\u4ed6\u5de5\u5177\u7ed3\u679c\u3011
+\u4f5c\u8005\uff1a{results.get("author", "")}
+\u5b57\u6570\uff1a{results.get("word_count", "")}
+\u56fe\u8868\uff1a{results.get("figure", "")}
+\u516c\u5f0f\uff1a{results.get("formula", "")}
+
+\u3010\u7528\u6237\u95ee\u9898\u3011
+{query}
+
+\u8981\u6c42\uff1a
+- \u4e0d\u8981\u62d2\u7b54\uff0c\u4e0d\u8981\u53ea\u8bf4\u201c\u65e0\u53ef\u7528\u751f\u6210\u7ed3\u679c\u201d
+- \u5982\u679c\u6587\u6863\u4f9d\u636e\u6709\u9650\uff0c\u5148\u8bf4\u660e\u5f53\u524d\u80fd\u786e\u8ba4\u7684\u90e8\u5206
+- \u518d\u57fa\u4e8e\u901a\u7528\u79d1\u7814\u77e5\u8bc6\u7ed9\u51fa\u5408\u7406\u7684\u8865\u5145\u89e3\u91ca
+- \u5fc5\u987b\u533a\u5206\u201c\u6587\u6863\u4f9d\u636e\u201d\u548c\u201c\u901a\u7528\u63a8\u65ad\u201d
+- \u8f93\u51fa\u7ed3\u6784\u5316\u56de\u7b54
 """
 
 
@@ -220,7 +263,12 @@ def _fallback_answer(tasks, results):
         evidence.append(results["tool_status"])
 
     sections.append("\U0001F4CE \u4f9d\u636e\n" + ("\n\n".join(evidence) if evidence else "\u6682\u65e0\u53ef\u7528\u8bba\u6587\u4fe1\u606f\u3002"))
-    sections.append("\u2705 \u6700\u7ec8\u56de\u7b54\n当前模型没有返回可用生成结果，上面展示的是系统检索到的依据。请换一种更具体的问法，例如“这篇论文的创新点是什么”。")
+    answer = (
+        "当前模型暂时没有返回稳定结果，但系统仍保留了可用依据。"
+        "你可以先参考上面的文档片段和工具分析；如果文档证据不足，建议把问题换成更具体的版本，"
+        "例如“这篇论文的核心贡献是什么”或“图 1 说明了什么”。"
+    )
+    sections.append("\u2705 \u6700\u7ec8\u56de\u7b54\n" + answer)
     return "\n\n---\n\n".join(sections)
 
 
@@ -239,6 +287,9 @@ def run_agent(query, pdf_data=None, paper_id=None):
     results = _collect_results(query, tasks, pdf_data, paper_id=paper_id)
     data = _ensure_pdf_data(pdf_data, paper_id=paper_id)
 
+    rag_confidence = results.get("rag_confidence", "none")
+    weak_rag = rag_confidence in {"none", "low"}
+
     if tasks == ["general"]:
         final_answer = ask_llm(query)
     elif any(task in tasks for task in ["formula", "figure", "author", "word_count"]) and _tool_answer(results):
@@ -246,7 +297,8 @@ def run_agent(query, pdf_data=None, paper_id=None):
     elif _curated_dft_answer(query, data):
         final_answer = _curated_dft_answer(query, data)
     else:
-        final_answer = ask_llm(_build_final_prompt(query, tasks, results))
+        prompt = _build_general_fallback_prompt(query, tasks, results) if weak_rag else _build_final_prompt(query, tasks, results)
+        final_answer = ask_llm(prompt)
         if (
             final_answer.startswith("\u8c03\u7528\u5931\u8d25")
             or "DASHSCOPE_API_KEY" in final_answer

@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v9"
+APP_VERSION = "2026-07-01-product-v10"
 
 
 def init_state():
@@ -349,13 +349,7 @@ def render_info_panel():
     """Render right-side paper analysis panel."""
     record = current_paper_record()
     st.markdown("<div style='height: 1.25rem;'></div>", unsafe_allow_html=True)
-    title_col, toggle_col = st.columns([0.9, 0.1], vertical_alignment="center")
-    with title_col:
-        st.markdown("### 论文分析面板")
-    with toggle_col:
-        if st.button("»", key="collapse_info_panel", help="收起论文分析面板"):
-            st.session_state["info_panel_open"] = False
-            st.rerun()
+    st.markdown("### 论文分析面板")
 
     if not record:
         st.info("上传论文后，这里会显示元信息、关键词和 RAG 检索结果。")
@@ -404,6 +398,19 @@ def render_info_panel():
             """,
             unsafe_allow_html=True,
         )
+
+
+def render_info_panel_toggle():
+    """Render a compact right-edge toggle for the analysis panel."""
+    st.markdown("<div style='height: 1.25rem;'></div>", unsafe_allow_html=True)
+    if st.session_state.get("info_panel_open", True):
+        if st.button("»", key="collapse_info_panel", help="收起论文分析面板"):
+            st.session_state["info_panel_open"] = False
+            st.rerun()
+    else:
+        if st.button("«", key="expand_info_panel_main", help="展开论文分析面板"):
+            st.session_state["info_panel_open"] = True
+            st.rerun()
 
 
 def render_chat_area():
@@ -463,19 +470,16 @@ def main():
     inject_style()
     render_sidebar()
 
-    if st.session_state.get("info_panel_open", True):
-        main_col, info_col = st.columns([0.68, 0.32], gap="large")
-        with main_col:
-            render_chat_area()
-        with info_col:
-            render_info_panel()
-    else:
-        _, open_col = st.columns([0.94, 0.06])
-        with open_col:
-            if st.button("«", key="expand_info_panel_main", help="展开论文分析面板"):
-                st.session_state["info_panel_open"] = True
-                st.rerun()
+    main_col, info_col, toggle_col = st.columns([0.66, 0.30, 0.04], gap="large")
+    with main_col:
         render_chat_area()
+    with info_col:
+        if st.session_state.get("info_panel_open", True):
+            render_info_panel()
+        else:
+            st.empty()
+    with toggle_col:
+        render_info_panel_toggle()
 
 
 if __name__ == "__main__":

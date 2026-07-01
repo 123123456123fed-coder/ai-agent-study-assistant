@@ -24,7 +24,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v23"
+APP_VERSION = "2026-07-01-product-v24"
 
 
 def init_state():
@@ -268,26 +268,28 @@ def inject_style():
         }
         [data-testid="stSidebar"] {
             background-color: #f5f6f8 !important;
+            height: 100vh !important;
         }
-        [data-testid="stSidebar"] > div:first-child {
-            height: 100vh;
-            overflow-y: auto;
+        [data-testid="stSidebar"] > div {
+            height: 100vh !important;
+            overflow-y: auto !important;
+        }
+        section[data-testid="stSidebar"] {
+            min-width: 310px;
+            overflow: hidden !important;
         }
         [data-testid="stSidebar"]::-webkit-scrollbar,
-        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar {
+        [data-testid="stSidebar"] > div::-webkit-scrollbar {
             width: 6px;
         }
         [data-testid="stSidebar"]::-webkit-scrollbar-thumb,
-        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar-thumb {
+        [data-testid="stSidebar"] > div::-webkit-scrollbar-thumb {
             background: #c1c1c1;
             border-radius: 10px;
         }
         [data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover,
-        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar-thumb:hover {
+        [data-testid="stSidebar"] > div::-webkit-scrollbar-thumb:hover {
             background: #a8a8a8;
-        }
-        section[data-testid="stSidebar"] {
-            min-width: 310px;
         }
         .left-panel-title {
             color: #111111;
@@ -305,20 +307,20 @@ def inject_style():
             color: #999999;
             font-size: 0.78rem;
         }
-        div[data-testid="stVerticalBlock"]:has(.left-panel-title) {
-            max-height: calc(100vh - 3rem);
-            overflow-y: auto;
-            overflow-x: hidden;
+        div[data-testid="column"]:has(.left-panel-root) > div[data-testid="stVerticalBlock"] {
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
             padding-right: 8px;
         }
-        div[data-testid="stVerticalBlock"]:has(.left-panel-title)::-webkit-scrollbar {
+        div[data-testid="column"]:has(.left-panel-root) > div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
             width: 6px;
         }
-        div[data-testid="stVerticalBlock"]:has(.left-panel-title)::-webkit-scrollbar-thumb {
+        div[data-testid="column"]:has(.left-panel-root) > div[data-testid="stVerticalBlock"]::-webkit-scrollbar-thumb {
             background: #c1c1c1;
             border-radius: 10px;
         }
-        div[data-testid="stVerticalBlock"]:has(.left-panel-title)::-webkit-scrollbar-thumb:hover {
+        div[data-testid="column"]:has(.left-panel-root) > div[data-testid="stVerticalBlock"]::-webkit-scrollbar-thumb:hover {
             background: #a8a8a8;
         }
         div[data-testid="stVerticalBlockBorderWrapper"] {
@@ -457,6 +459,7 @@ def render_sidebar():
 
 def render_left_panel():
     """Render the custom left document panel."""
+    st.markdown('<div class="left-panel-root"></div>', unsafe_allow_html=True)
     title_col, toggle_col = st.columns([0.86, 0.14], vertical_alignment="center")
     with title_col:
         st.markdown('<h2 class="left-panel-title">AI Research Assistant Pro</h2>', unsafe_allow_html=True)

@@ -13,7 +13,7 @@ from utils.pdf_loader import load_pdf
 NO_CONTEXT = "\u672a\u5728\u6587\u6863\u4e2d\u627e\u5230\u76f8\u5173\u5185\u5bb9\u3002"
 LOW_RAG_CONFIDENCE = 0.2
 
-ZH_RAG_HINTS = ["\u8bba\u6587", "\u6587\u6863", "\u6587\u7ae0", "\u8fd9\u7bc7", "\u603b\u7ed3", "\u8d21\u732e", "\u65b9\u6cd5", "\u5b9e\u9a8c", "\u7ed3\u8bba", "\u6838\u5fc3"]
+ZH_RAG_HINTS = ["\u8bba\u6587", "\u6587\u6863", "\u6587\u7ae0", "\u8fd9\u7bc7", "\u8d21\u732e", "\u65b9\u6cd5", "\u5b9e\u9a8c", "\u7ed3\u8bba", "\u6838\u5fc3"]
 ZH_SUMMARY_HINTS = ["\u603b\u7ed3", "\u6982\u62ec", "\u6458\u8981", "\u5b66\u4e60\u8ba1\u5212"]
 ZH_AUTHOR_HINTS = ["\u4f5c\u8005", "\u8c01\u5199\u7684", "\u5143\u4fe1\u606f", "\u6807\u9898"]
 ZH_WORD_COUNT_HINTS = ["\u5b57\u6570", "\u591a\u5c11\u5b57", "\u8bcd\u6570", "\u7edf\u8ba1", "\u7ed3\u6784"]
@@ -47,7 +47,7 @@ def _detect_tasks(query):
     primary = classify_query(query)
     tasks = {primary}
 
-    if _wants_any(query, ZH_RAG_HINTS + ["paper", "summary"]):
+    if _wants_any(query, ZH_RAG_HINTS + ["paper"]):
         tasks.add("rag")
     if _wants_any(query, ZH_SUMMARY_HINTS + ["summary", "summarize"]):
         tasks.add("summary")
@@ -156,7 +156,7 @@ def _collect_results(query, tasks, pdf_data, paper_id=None):
     results = {}
     data = _ensure_pdf_data(pdf_data, paper_id=paper_id)
 
-    if any(task in tasks for task in ["rag", "summary"]):
+    if any(task in tasks for task in ["rag", "summary", "general"]):
         rag_chunks = retriever.search(query, top_k=5, paper_id=paper_id)
         results["rag_chunks"] = rag_chunks
         results["rag_confidence"] = _rag_confidence(rag_chunks)
@@ -179,10 +179,15 @@ def _collect_results(query, tasks, pdf_data, paper_id=None):
     return results
 
 
-def _build_final_prompt(query, tasks, results):
-    """Build the unified Tool-Augmented LLM prompt."""
+def _is_summary_request(query, tasks):
+    """Return whether the user is explicitly asking for a summary-style answer."""
+    return "summary" in tasks or _wants_any(query, ZH_SUMMARY_HINTS + ["summary", "summarize", "abstract"])
+
+
+def _build_question_prompt(query, tasks, results):
+    """Build a question-grounded QA prompt instead of a generic paper summary prompt."""
     return f"""
-\u4f60\u662f\u79d1\u7814\u8bba\u6587\u5206\u6790 AI \u52a9\u624b\uff0c\u8bf7\u57fa\u4e8e\u4ee5\u4e0b\u4fe1\u606f\u56de\u7b54\u95ee\u9898\uff1a
+\u4f60\u662f\u79d1\u7814\u8bba\u6587\u95ee\u7b54 AI \u52a9\u624b\uff0c\u8bf7\u4e25\u683c\u56f4\u7ed5\u7528\u6237\u95ee\u9898\u4f5c\u7b54\uff0c\u4e0d\u8981\u9ed8\u8ba4\u8f93\u51fa\u6574\u7bc7\u8bba\u6587\u603b\u7ed3\u3002
 
 \u3010\u4efb\u52a1\u7c7b\u578b\u3011
 {", ".join(tasks)}
@@ -212,11 +217,42 @@ def _build_final_prompt(query, tasks, results):
 {results.get("rag_confidence", "none")}
 
 \u8981\u6c42\uff1a
+- \u76f4\u63a5\u56de\u7b54\u7528\u6237\u95ee\u9898\uff0c\u7b2c\u4e00\u53e5\u5c31\u7ed9\u51fa\u7ed3\u8bba
+- \u53ea\u805a\u7126\u95ee\u9898\u76f8\u5173\u5185\u5bb9\uff0c\u4e0d\u8981\u987a\u5e26\u6982\u62ec\u5168\u6587
+- \u9664\u975e\u7528\u6237\u660e\u786e\u8981\u6c42\u201c\u603b\u7ed3/\u6982\u62ec/\u6458\u8981\u201d\uff0c\u5426\u5219\u4e0d\u8981\u8f93\u51fa\u6574\u7bc7\u8bba\u6587\u603b\u7ed3
 - \u4f18\u5148\u4f7f\u7528\u63d0\u4f9b\u7684\u68c0\u7d22\u7ed3\u679c\u548c\u5de5\u5177\u7ed3\u679c
 - \u5982\u679c RAG \u7f6e\u4fe1\u5ea6\u8f83\u4f4e\u6216\u6587\u6863\u8bc1\u636e\u4e0d\u8db3\uff0c\u4ecd\u7136\u8981\u7ed9\u51fa\u6709\u5e2e\u52a9\u7684\u56de\u7b54
 - \u9700\u8981\u660e\u786e\u533a\u5206\u201c\u6587\u6863\u4f9d\u636e\u201d\u548c\u201c\u901a\u7528\u63a8\u65ad\u201d
 - \u4e0d\u8981\u91cd\u590d\u8f93\u51fa\u76f8\u540c\u4fe1\u606f
 - \u8f93\u51fa\u7ed3\u6784\u5316\u56de\u7b54\uff0c\u5305\u542b\u201c\u4efb\u52a1\u5224\u65ad\u3001\u4f9d\u636e\u3001\u6700\u7ec8\u56de\u7b54\u201d
+"""
+
+
+def _build_summary_prompt(query, tasks, results):
+    """Build a summary-oriented prompt only when the user explicitly asks for one."""
+    return f"""
+\u4f60\u662f\u79d1\u7814\u8bba\u6587\u603b\u7ed3 AI \u52a9\u624b\uff0c\u8bf7\u6839\u636e\u4ee5\u4e0b\u68c0\u7d22\u7ed3\u679c\u548c\u5de5\u5177\u4fe1\u606f\uff0c\u6309\u7167\u7528\u6237\u7684\u603b\u7ed3\u9700\u6c42\u8fdb\u884c\u6982\u62ec\u3002
+
+\u3010\u7528\u6237\u95ee\u9898\u3011
+{query}
+
+\u3010RAG \u68c0\u7d22\u7ed3\u679c\u3011
+{results.get("rag", "")}
+
+\u3010\u56fe\u8868\u4fe1\u606f\u3011
+{results.get("figure", "")}
+
+\u3010\u516c\u5f0f\u4fe1\u606f\u3011
+{results.get("formula", "")}
+
+\u3010\u5143\u4fe1\u606f\u3011
+{results.get("author", "")}
+
+\u8981\u6c42\uff1a
+- \u53ea\u5728\u7528\u6237\u660e\u786e\u8981\u6c42\u603b\u7ed3\u65f6\u624d\u8f93\u51fa\u603b\u7ed3
+- \u7a81\u51fa\u4e0e\u95ee\u9898\u6700\u76f8\u5173\u7684\u8981\u70b9
+- \u4e0d\u8981\u8131\u79bb\u68c0\u7d22\u5230\u7684\u5185\u5bb9
+- \u8f93\u51fa\u7ed3\u6784\u6e05\u6670\uff0c\u4f46\u4e0d\u8981\u53d8\u6210\u6cdb\u5316\u7684\u5168\u6587\u6458\u8981
 """
 
 
@@ -241,6 +277,8 @@ def _build_general_fallback_prompt(query, tasks, results):
 {query}
 
 \u8981\u6c42\uff1a
+- \u76f4\u63a5\u56de\u7b54\u7528\u6237\u8fd9\u4e2a\u95ee\u9898\uff0c\u4e0d\u8981\u53d8\u6210\u6574\u7bc7\u8bba\u6587\u603b\u7ed3
+- \u9664\u975e\u7528\u6237\u660e\u786e\u8981\u6c42\u603b\u7ed3\uff0c\u5426\u5219\u4e0d\u8981\u6982\u62ec\u5168\u6587
 - \u4e0d\u8981\u62d2\u7b54\uff0c\u4e0d\u8981\u53ea\u8bf4\u201c\u65e0\u53ef\u7528\u751f\u6210\u7ed3\u679c\u201d
 - \u5982\u679c\u6587\u6863\u4f9d\u636e\u6709\u9650\uff0c\u5148\u8bf4\u660e\u5f53\u524d\u80fd\u786e\u8ba4\u7684\u90e8\u5206
 - \u518d\u57fa\u4e8e\u901a\u7528\u79d1\u7814\u77e5\u8bc6\u7ed9\u51fa\u5408\u7406\u7684\u8865\u5145\u89e3\u91ca
@@ -289,15 +327,21 @@ def run_agent(query, pdf_data=None, paper_id=None):
 
     rag_confidence = results.get("rag_confidence", "none")
     weak_rag = rag_confidence in {"none", "low"}
+    summary_request = _is_summary_request(query, tasks)
 
-    if tasks == ["general"]:
+    if tasks == ["general"] and not data:
         final_answer = ask_llm(query)
     elif any(task in tasks for task in ["formula", "figure", "author", "word_count"]) and _tool_answer(results):
         final_answer = _tool_answer(results)
     elif _curated_dft_answer(query, data):
         final_answer = _curated_dft_answer(query, data)
     else:
-        prompt = _build_general_fallback_prompt(query, tasks, results) if weak_rag else _build_final_prompt(query, tasks, results)
+        if summary_request:
+            prompt = _build_summary_prompt(query, tasks, results)
+        elif weak_rag:
+            prompt = _build_general_fallback_prompt(query, tasks, results)
+        else:
+            prompt = _build_question_prompt(query, tasks, results)
         final_answer = ask_llm(prompt)
         if (
             final_answer.startswith("\u8c03\u7528\u5931\u8d25")

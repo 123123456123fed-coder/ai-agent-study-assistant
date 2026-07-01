@@ -241,6 +241,17 @@ def render_assistant_message(content):
             st.divider()
 
 
+def current_retrieval_sources():
+    """Return retrieval source paper ids from the latest RAG results."""
+    chunks = st.session_state.get("last_retrieval", [])
+    sources = []
+    for item in chunks:
+        source_id = item.get("paper_id", "")
+        if source_id and source_id not in sources:
+            sources.append(source_id)
+    return sources
+
+
 def inject_style():
     """Add product-level styling."""
     st.markdown(
@@ -666,6 +677,13 @@ def render_info_panel():
     pdf_data = record.get("pdf_data", {})
     meta = pdf_data.get("metadata", {})
     counts = paper_counts(pdf_data)
+    active_paper_id = st.session_state.get("current_paper_id") or record.get("paper_id", record.get("name", ""))
+    retrieval_sources = current_retrieval_sources()
+
+    st.caption(f"当前论文：{record.get('name')}")
+    st.caption(f"当前 paper_id：`{active_paper_id}`")
+    if retrieval_sources:
+        st.caption(f"当前检索来源：`{'`, `'.join(retrieval_sources)}`")
 
     st.markdown(f"**作者**  \n{meta.get('authors') or '未识别'}")
     metric_col_1, metric_col_2 = st.columns(2)
@@ -684,11 +702,13 @@ def render_info_panel():
     for index, item in enumerate(chunks[:3], start=1):
         score = item.get("score", 0.0)
         text = item.get("text", "").strip()
+        source_id = item.get("paper_id", active_paper_id)
         preview = text[:260] + ("..." if len(text) > 260 else "")
         st.markdown(
             f"""
             <div class="chunk-card">
                 <strong>Top {index}</strong> · {score:.3f}<br/>
+                <small>source paper_id: {source_id}</small><br/>
                 {preview}
             </div>
             """,
@@ -773,7 +793,12 @@ def render_chat_area():
 
     record = current_paper_record()
     if record:
+        active_paper_id = st.session_state.get("current_paper_id") or record.get("paper_id", record.get("name", ""))
+        retrieval_sources = current_retrieval_sources()
         st.success(f"当前论文：{record.get('name')}")
+        st.caption(f"当前 paper_id：`{active_paper_id}`")
+        if retrieval_sources:
+            st.caption(f"本轮检索命中来源：`{'`, `'.join(retrieval_sources)}`")
     else:
         st.warning("请先在左侧上传或加载一篇论文。")
 

@@ -20,12 +20,14 @@ ZH_FIGURE_HINTS = ["\u56fe", "\u56fe\u8868", "\u8868\u683c"]
 ZH_FORMULA_HINTS = ["\u516c\u5f0f", "\u65b9\u7a0b", "\u8868\u8fbe\u5f0f"]
 
 
-def ingest_pdf(file_path):
+def ingest_pdf(file_path, paper_id=None):
     """Load a PDF, build text RAG index, and return UI status plus pdf_data."""
     pdf_data = load_pdf(file_path)
-    index_info = retriever.build_from_data(pdf_data)
+    resolved_paper_id = paper_id or file_path
+    index_info = retriever.build_from_data(pdf_data, paper_id=resolved_paper_id)
     return {
         **index_info,
+        "paper_id": resolved_paper_id,
         "pdf_data": pdf_data,
         "figure_count": len(pdf_data.get("figures", [])),
         "table_count": len(pdf_data.get("tables", [])),
@@ -77,11 +79,11 @@ def _format_rag_results(chunks):
     return "\n\n".join(lines)
 
 
-def _ensure_pdf_data(pdf_data):
+def _ensure_pdf_data(pdf_data, paper_id=None):
     """Use provided pdf_data or fallback to the latest ingested document."""
     if pdf_data:
         return pdf_data
-    return retriever.get_pdf_data()
+    return retriever.get_pdf_data(paper_id=paper_id)
 
 
 def _is_on_chip_dft_paper(pdf_data):
@@ -140,13 +142,13 @@ def _curated_dft_answer(query, pdf_data):
     return ""
 
 
-def _collect_results(query, tasks, pdf_data):
+def _collect_results(query, tasks, pdf_data, paper_id=None):
     """Run RAG and tools selected by the Agent."""
     results = {}
-    data = _ensure_pdf_data(pdf_data)
+    data = _ensure_pdf_data(pdf_data, paper_id=paper_id)
 
     if any(task in tasks for task in ["rag", "summary"]):
-        results["rag"] = _format_rag_results(retriever.search(query, top_k=3))
+        results["rag"] = _format_rag_results(retriever.search(query, top_k=3, paper_id=paper_id))
 
     if not data:
         if any(task in tasks for task in ["author", "word_count", "figure", "formula"]):
@@ -231,11 +233,11 @@ def _tool_answer(results):
     return "\n\n".join(sections)
 
 
-def run_agent(query, pdf_data=None):
+def run_agent(query, pdf_data=None, paper_id=None):
     """Run multimodal task decomposition, tool selection, and answer fusion."""
     tasks = _detect_tasks(query)
-    results = _collect_results(query, tasks, pdf_data)
-    data = _ensure_pdf_data(pdf_data)
+    results = _collect_results(query, tasks, pdf_data, paper_id=paper_id)
+    data = _ensure_pdf_data(pdf_data, paper_id=paper_id)
 
     if tasks == ["general"]:
         final_answer = ask_llm(query)

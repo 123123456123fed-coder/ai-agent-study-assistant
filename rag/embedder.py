@@ -84,15 +84,20 @@ def build_embeddings(chunks):
 
 def encode_query(query):
     """Encode a query using the same backend as document embeddings."""
+    return encode_query_with_state(query, _backend, _tfidf_vectorizer)
+
+
+def encode_query_with_state(query, backend, vectorizer=None):
+    """Encode a query with an explicit backend/vectorizer pair."""
     expanded_query = expand_query(query)
 
-    if _backend == EMBEDDING_MODEL_NAME:
+    if backend == EMBEDDING_MODEL_NAME:
         model = _get_sentence_transformer()
         vector = model.encode([expanded_query], convert_to_numpy=True).astype("float32")
         return normalize(vector).astype("float32")
 
-    if _backend == "tfidf-fallback" and _tfidf_vectorizer is not None:
-        vector = _tfidf_vectorizer.transform([expanded_query]).toarray().astype("float32")
+    if backend == "tfidf-fallback" and vectorizer is not None:
+        vector = vectorizer.transform([expanded_query]).toarray().astype("float32")
         return normalize(vector).astype("float32")
 
     return None
@@ -130,3 +135,8 @@ def keyword_boost(query, chunk):
 def get_backend():
     """Return the active embedding backend name."""
     return _backend
+
+
+def get_vectorizer():
+    """Return the active TF-IDF vectorizer when fallback backend is used."""
+    return _tfidf_vectorizer

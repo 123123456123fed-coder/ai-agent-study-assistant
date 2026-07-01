@@ -24,7 +24,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v24"
+APP_VERSION = "2026-07-01-product-v25"
 
 
 def init_state():
@@ -35,6 +35,7 @@ def init_state():
 
     st.session_state.setdefault("papers", {})
     st.session_state.setdefault("current_paper", "")
+    st.session_state.setdefault("current_paper_id", "")
     st.session_state.setdefault("messages", [])
     st.session_state.setdefault("last_query", "")
     st.session_state.setdefault("last_retrieval", [])
@@ -68,6 +69,7 @@ def sync_current_status(record):
     if not record:
         st.session_state["rag_ready"] = False
         st.session_state["current_pdf"] = ""
+        st.session_state["current_paper_id"] = ""
         st.session_state["chunk_count"] = 0
         st.session_state["retrieval_backend"] = "未构建"
         st.session_state["pdf_data"] = None
@@ -75,6 +77,7 @@ def sync_current_status(record):
 
     st.session_state["rag_ready"] = True
     st.session_state["current_pdf"] = record.get("name", "")
+    st.session_state["current_paper_id"] = record.get("paper_id", record.get("name", ""))
     st.session_state["chunk_count"] = record.get("chunk_count", 0)
     st.session_state["retrieval_backend"] = record.get("backend", "unknown")
     st.session_state["pdf_data"] = record.get("pdf_data")
@@ -112,11 +115,13 @@ def paper_counts(pdf_data):
 
 def build_paper_record(file_path, display_name):
     """Ingest a PDF and create a session paper record."""
-    info = ingest_pdf(str(file_path))
+    paper_id = display_name
+    info = ingest_pdf(str(file_path), paper_id=paper_id)
     pdf_data = info.get("pdf_data", {})
     counts = paper_counts(pdf_data)
     return {
         "name": display_name,
+        "paper_id": paper_id,
         "file_path": str(file_path),
         "pdf_data": pdf_data,
         "chunk_count": info.get("chunk_count", 0),
@@ -130,7 +135,7 @@ def build_paper_record(file_path, display_name):
 
 
 def select_paper(name):
-    """Switch current paper and rebuild the global RAG index for it."""
+    """Switch current paper and activate its isolated RAG index."""
     if not name:
         sync_current_status(None)
         return
@@ -140,12 +145,17 @@ def select_paper(name):
         sync_current_status(None)
         return
 
-    # retriever keeps one in-memory index, so rebuild it for the active paper.
-    refreshed = build_paper_record(Path(record["file_path"]), name)
-    st.session_state["papers"][name] = refreshed
+    paper_id = record.get("paper_id", name)
+    if not retriever.has_index(paper_id):
+        record = build_paper_record(Path(record["file_path"]), name)
+        st.session_state["papers"][name] = record
+        paper_id = record.get("paper_id", name)
+
+    retriever.set_active_paper(paper_id)
     st.session_state["current_paper"] = name
+    st.session_state["current_paper_id"] = paper_id
     st.session_state["last_retrieval"] = []
-    sync_current_status(refreshed)
+    sync_current_status(record)
 
 
 def load_demo_pdf():
@@ -158,9 +168,10 @@ def load_demo_pdf():
         record = build_paper_record(DEMO_PDF_PATH, DEMO_PDF_PATH.name)
         st.session_state["papers"][DEMO_PDF_PATH.name] = record
         st.session_state["current_paper"] = DEMO_PDF_PATH.name
+        st.session_state["current_paper_id"] = record["paper_id"]
         sync_current_status(record)
         add_message("user", DEMO_QUESTION)
-        add_message("assistant", run_agent(DEMO_QUESTION, record["pdf_data"]))
+        add_message("assistant", run_agent(DEMO_QUESTION, record["pdf_data"], paper_id=record["paper_id"]))
         st.rerun()
 
 
@@ -174,12 +185,13 @@ def run_user_query(prompt):
 
     select_paper(record["name"])
     pdf_data = current_pdf_data()
+    paper_id = st.session_state.get("current_paper_id") or record.get("paper_id", record["name"])
     st.session_state["last_query"] = prompt
-    st.session_state["last_retrieval"] = retriever.search(prompt, top_k=3)
+    st.session_state["last_retrieval"] = retriever.search(prompt, top_k=3, paper_id=paper_id)
 
     add_message("user", prompt)
     with st.spinner("AI正在分析论文..."):
-        response = run_agent(prompt, pdf_data)
+        response = run_agent(prompt, pdf_data, paper_id=paper_id)
     add_message("assistant", response)
 
 

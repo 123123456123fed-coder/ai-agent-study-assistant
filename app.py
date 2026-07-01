@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v16"
+APP_VERSION = "2026-07-01-product-v17"
 
 
 def init_state():
@@ -478,7 +478,9 @@ def render_info_panel():
 
 def render_right_panel_toggle():
     """Render the single custom control for the right analysis panel."""
-    if st.button("📊 切换论文分析面板", use_container_width=True, key="toggle_right_panel"):
+    label = "»" if st.session_state.show_right_panel else "«"
+    help_text = "收起论文分析面板" if st.session_state.show_right_panel else "展开论文分析面板"
+    if st.button(label, key="toggle_right_panel", help=help_text):
         st.session_state.show_right_panel = not st.session_state.show_right_panel
         st.rerun()
 

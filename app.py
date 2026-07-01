@@ -24,7 +24,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v22"
+APP_VERSION = "2026-07-01-product-v23"
 
 
 def init_state():
@@ -269,6 +269,23 @@ def inject_style():
         [data-testid="stSidebar"] {
             background-color: #f5f6f8 !important;
         }
+        [data-testid="stSidebar"] > div:first-child {
+            height: 100vh;
+            overflow-y: auto;
+        }
+        [data-testid="stSidebar"]::-webkit-scrollbar,
+        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar {
+            width: 6px;
+        }
+        [data-testid="stSidebar"]::-webkit-scrollbar-thumb,
+        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+        [data-testid="stSidebar"]::-webkit-scrollbar-thumb:hover,
+        [data-testid="stSidebar"] > div:first-child::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
         section[data-testid="stSidebar"] {
             min-width: 310px;
         }
@@ -287,6 +304,22 @@ def inject_style():
         .left-panel-meta {
             color: #999999;
             font-size: 0.78rem;
+        }
+        div[data-testid="stVerticalBlock"]:has(.left-panel-title) {
+            max-height: calc(100vh - 3rem);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 8px;
+        }
+        div[data-testid="stVerticalBlock"]:has(.left-panel-title)::-webkit-scrollbar {
+            width: 6px;
+        }
+        div[data-testid="stVerticalBlock"]:has(.left-panel-title)::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+        div[data-testid="stVerticalBlock"]:has(.left-panel-title)::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
         }
         div[data-testid="stVerticalBlockBorderWrapper"] {
             background: #ffffff;

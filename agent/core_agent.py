@@ -198,8 +198,78 @@ def _is_summary_request(query, tasks):
     return "summary" in tasks or _wants_any(query, ZH_SUMMARY_HINTS + ["summary", "summarize", "abstract"])
 
 
+def generate_answer(question, retrieved_chunks, results=None, summary_mode=False, low_confidence=False):
+    """Generate a final answer grounded in retrieved chunks and the user question."""
+    results = results or {}
+    context = retrieved_chunks or NO_CONTEXT
+    figure_info = results.get("figure", "")
+    formula_info = results.get("formula", "")
+    author_info = results.get("author", "")
+    word_count_info = results.get("word_count", "")
+
+    if summary_mode:
+        return ask_llm(
+            f"""
+你是一个基于论文内容的总结助手，请根据检索到的内容完成用户要求的总结。
+
+【用户问题】
+{question}
+
+【检索到的论文内容】
+{context}
+
+【补充图表信息】
+{figure_info}
+
+【补充公式信息】
+{formula_info}
+
+【补充元信息】
+{author_info}
+
+要求：
+- 只有当用户明确要求总结时，才输出总结
+- 总结必须基于给定内容
+- 不要脱离检索内容自由发挥
+- 输出聚焦用户要求，不要堆砌整篇论文概述
+"""
+        )
+
+    return ask_llm(
+        f"""
+你是一个基于论文的问答助手，请严格根据以下内容回答问题。
+
+【用户问题】
+{question}
+
+【检索到的论文内容】
+{context}
+
+【补充图表信息】
+{figure_info}
+
+【补充公式信息】
+{formula_info}
+
+【补充元信息】
+{author_info}
+
+【补充统计信息】
+{word_count_info}
+
+要求：
+- 只基于给定内容回答
+- 如果内容不足，说明“论文未明确说明”
+- 不要做整篇总结
+- 直接回答用户这个问题，不要输出固定论文模板
+- 问贡献就只回答贡献，问方法就只解释方法，问作者就只回答作者
+- 如果检索证据较弱，可以做少量通用推断，但必须明确说明
+"""
+    )
+
+
 def _build_question_prompt(query, tasks, results):
-    """Build a question-grounded QA prompt instead of a generic paper summary prompt."""
+    """Backward-compatible wrapper for question-grounded QA prompts."""
     return f"""
 你是科研论文问答 AI 助手。
 
@@ -341,13 +411,11 @@ def run_agent(query, pdf_data=None, paper_id=None):
     elif any(task in tasks for task in ["formula", "figure", "author", "word_count"]) and _tool_answer(results):
         final_answer = _tool_answer(results)
     else:
+        rag_context = results.get("rag_context", NO_CONTEXT)
         if summary_request:
-            prompt = _build_summary_prompt(query, tasks, results)
-        elif weak_rag:
-            prompt = _build_general_fallback_prompt(query, tasks, results)
+            final_answer = generate_answer(query, rag_context, results=results, summary_mode=True, low_confidence=weak_rag)
         else:
-            prompt = _build_question_prompt(query, tasks, results)
-        final_answer = ask_llm(prompt)
+            final_answer = generate_answer(query, rag_context, results=results, summary_mode=False, low_confidence=weak_rag)
         if (
             final_answer.startswith("\u8c03\u7528\u5931\u8d25")
             or "DASHSCOPE_API_KEY" in final_answer

@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v8"
+APP_VERSION = "2026-07-01-product-v9"
 
 
 def init_state():
@@ -279,11 +279,6 @@ def render_sidebar():
         st.caption("NotebookLM 式论文库 + ChatGPT 式对话 + 科研分析面板")
         st.caption(f"Version: {APP_VERSION}")
 
-        panel_label = "隐藏论文分析面板" if st.session_state.get("info_panel_open", True) else "显示论文分析面板"
-        if st.button(panel_label, use_container_width=True, key="sidebar_toggle_info_panel"):
-            st.session_state["info_panel_open"] = not st.session_state.get("info_panel_open", True)
-            st.rerun()
-
         st.divider()
         st.markdown("### 📄 我的论文库")
         papers = list(st.session_state["papers"].keys())
@@ -354,10 +349,13 @@ def render_info_panel():
     """Render right-side paper analysis panel."""
     record = current_paper_record()
     st.markdown("<div style='height: 1.25rem;'></div>", unsafe_allow_html=True)
-    st.markdown("### 论文分析面板")
-    if st.button("隐藏论文分析面板", use_container_width=True, key="collapse_info_panel"):
-        st.session_state["info_panel_open"] = False
-        st.rerun()
+    title_col, toggle_col = st.columns([0.9, 0.1], vertical_alignment="center")
+    with title_col:
+        st.markdown("### 论文分析面板")
+    with toggle_col:
+        if st.button("»", key="collapse_info_panel", help="收起论文分析面板"):
+            st.session_state["info_panel_open"] = False
+            st.rerun()
 
     if not record:
         st.info("上传论文后，这里会显示元信息、关键词和 RAG 检索结果。")
@@ -472,9 +470,9 @@ def main():
         with info_col:
             render_info_panel()
     else:
-        open_col, _ = st.columns([0.22, 0.78])
+        _, open_col = st.columns([0.94, 0.06])
         with open_col:
-            if st.button("展开论文分析面板", use_container_width=True, key="expand_info_panel_main"):
+            if st.button("«", key="expand_info_panel_main", help="展开论文分析面板"):
                 st.session_state["info_panel_open"] = True
                 st.rerun()
         render_chat_area()

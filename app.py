@@ -9,6 +9,12 @@ import re
 
 import streamlit as st
 
+st.set_page_config(
+    page_title="AI Research Assistant Pro",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
 from agent.core_agent import ingest_pdf, run_agent
 from rag import retriever
 
@@ -18,7 +24,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v19"
+APP_VERSION = "2026-07-01-product-v21"
 
 
 def init_state():
@@ -229,9 +235,14 @@ def inject_style():
         """
         <style>
         .block-container {
-            max-width: 1480px;
+            max-width: 100% !important;
             padding-top: 1.4rem;
+            padding-left: 2rem;
+            padding-right: 2rem;
             padding-bottom: 7.5rem;
+        }
+        main {
+            max-width: 100% !important;
         }
         div[data-testid="stDecoration"],
         div[data-testid="stToolbar"],
@@ -629,11 +640,6 @@ def render_chat_area():
 
 def main():
     """Render the product UI."""
-    st.set_page_config(
-        page_title="AI Research Assistant Pro",
-        layout="wide",
-        initial_sidebar_state="collapsed",
-    )
     init_state()
     inject_style()
 
@@ -641,7 +647,7 @@ def main():
     right_open = st.session_state.show_right_panel
 
     if left_open and right_open:
-        left_col, main_col, right_col = st.columns([1.05, 2.6, 1.0], gap="large")
+        left_col, main_col, right_col = st.columns([1.05, 2.6, 1.0], gap="small")
         with left_col:
             render_left_panel()
         with main_col:
@@ -650,7 +656,7 @@ def main():
             render_right_panel_toggle()
             render_info_panel()
     elif left_open and not right_open:
-        left_col, main_col, right_toggle_col = st.columns([1.05, 3.0, 0.08], gap="large")
+        left_col, main_col, right_toggle_col = st.columns([1.05, 3.0, 0.08], gap="small")
         with left_col:
             render_left_panel()
         with main_col:
@@ -658,7 +664,7 @@ def main():
         with right_toggle_col:
             render_right_panel_toggle()
     elif not left_open and right_open:
-        left_toggle_col, main_col, right_col = st.columns([0.08, 2.9, 1.0], gap="large")
+        left_toggle_col, main_col, right_col = st.columns([0.08, 2.9, 1.0], gap="small")
         with left_toggle_col:
             render_left_panel_toggle()
         with main_col:
@@ -667,7 +673,7 @@ def main():
             render_right_panel_toggle()
             render_info_panel()
     else:
-        left_toggle_col, main_col, right_toggle_col = st.columns([0.08, 3.6, 0.08], gap="large")
+        left_toggle_col, main_col, right_toggle_col = st.columns([0.08, 3.6, 0.08], gap="small")
         with left_toggle_col:
             render_left_panel_toggle()
         with main_col:

@@ -18,7 +18,7 @@ DOCS_DIR = BASE_DIR / "data" / "docs"
 DEMO_PDF_PATH = DOCS_DIR / "on_chip_test_infrastructure_dft.pdf"
 DEMO_QUESTION = "这篇论文的核心贡献是什么？"
 MAX_HISTORY = 16
-APP_VERSION = "2026-07-01-product-v12"
+APP_VERSION = "2026-07-01-product-v13"
 
 
 def init_state():
@@ -231,6 +231,16 @@ def inject_style():
             max-width: 1480px;
             padding-top: 1.4rem;
             padding-bottom: 2rem;
+        }
+        header[data-testid="stHeader"],
+        div[data-testid="stToolbar"],
+        div[data-testid="stDecoration"],
+        div[data-testid="stStatusWidget"],
+        .stAppDeployButton,
+        iframe[title="streamlit_app_badge"] {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
         }
         section[data-testid="stSidebar"] {
             min-width: 310px;
@@ -503,15 +513,18 @@ def main():
     inject_style()
     render_sidebar()
 
-    col_left, col_main, col_right = st.columns([1.2, 2.6, 1.2], gap="large")
-    with col_left:
-        st.empty()
-    with col_main:
-        render_chat_area()
-    with col_right:
-        render_right_panel_toggle()
-        if st.session_state.show_right_panel:
+    if st.session_state.show_right_panel:
+        col_main, col_right = st.columns([2.8, 1.0], gap="large")
+        with col_main:
+            render_chat_area()
+        with col_right:
+            render_right_panel_toggle()
             render_info_panel()
+    else:
+        toggle_col, _ = st.columns([0.22, 2.78])
+        with toggle_col:
+            render_right_panel_toggle()
+        render_chat_area()
 
 
 if __name__ == "__main__":
